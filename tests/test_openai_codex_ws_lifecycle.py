@@ -624,3 +624,185 @@ async def test_many_concurrent_sessions_cleanly_drained():
         if (t.get_name() or "").startswith("codex-ws-") and not t.done()
     ]
     assert leaked == []
+
+
+@pytest.mark.asyncio
+async def test_ws_first_frame_compression_failure_fails_closed():
+    upstream = _FakeUpstream(
+        [json.dumps({"type": "response.completed", "response": {"id": "r_1"}})]
+    )
+    fake_ws_mod = _make_fake_websockets_module(upstream)
+    client_ws = _FakeWebSocket(frames=[_first_frame()])
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    handler._compress_openai_responses_payload = MagicMock(
+        side_effect=RuntimeError("compressor exploded")
+    )
+
+    with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
+        await handler.handle_openai_responses_ws(client_ws)
+
+    assert upstream.sent == []
+    assert client_ws.closed is True
+    error_events = [json.loads(text) for text in client_ws.sent_text]
+    assert error_events[-1]["type"] == "error"
+    assert error_events[-1]["error"]["code"] == "headroom_compression_failed"
+
+
+@pytest.mark.asyncio
+async def test_ws_subsequent_response_create_compression_failure_is_not_forwarded():
+    upstream = _FakeUpstream(
+        [json.dumps({"type": "response.created", "response": {"id": "r_1"}})],
+        hold_after_events=True,
+    )
+    fake_ws_mod = _make_fake_websockets_module(upstream)
+    second_frame = json.dumps(
+        {
+            "type": "response.create",
+            "response": {"model": "gpt-5.4", "input": "second turn"},
+        }
+    )
+    client_ws = _FakeWebSocket(frames=[_first_frame(), second_frame])
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    handler._compress_openai_responses_payload = MagicMock(
+        side_effect=[
+            (
+                {"model": "gpt-5.4", "input": "hi"},
+                False,
+                0,
+                [],
+                "router_no_compression",
+                10,
+                10,
+                0,
+                {},
+            ),
+            RuntimeError("compressor exploded"),
+        ]
+    )
+
+    with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
+        await asyncio.wait_for(handler.handle_openai_responses_ws(client_ws), timeout=2.0)
+
+    assert upstream.sent == [_first_frame()]
+    assert second_frame not in upstream.sent
+    error_events = [json.loads(text) for text in client_ws.sent_text if text.startswith("{")]
+    assert any(
+        event.get("error", {}).get("code") == "headroom_compression_failed"
+        for event in error_events
+    )
+    assert client_ws.closed is True
+
+
+@pytest.mark.asyncio
+async def test_ws_codex_usage_inflates_after_compression_but_metrics_stay_optimized():
+    upstream = _FakeUpstream(
+        [
+            json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
+            json.dumps(
+                {
+                    "type": "response.completed",
+                    "response": {
+                        "id": "r_1",
+                        "usage": {
+                            "input_tokens": 190_000,
+                            "output_tokens": 321,
+                            "input_tokens_details": {"cached_tokens": 180_000},
+                        },
+                    },
+                }
+            ),
+        ],
+        hold_after_events=True,
+    )
+    fake_ws_mod = _make_fake_websockets_module(upstream)
+    client_ws = _FakeWebSocket(
+        frames=[_first_frame()],
+        hold_after_initial=True,
+        disconnect_after_n_sends=2,
+    )
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    handler._compress_openai_responses_payload = MagicMock(
+        return_value=(
+            {"model": "gpt-5.4", "input": "compressed"},
+            True,
+            120_000,
+            ["test_compression"],
+            "compressed",
+            310_000,
+            190_000,
+            310_000,
+            {},
+        )
+    )
+
+    with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
+        await handler.handle_openai_responses_ws(client_ws)
+
+    from headroom.proxy.handlers.openai import _inflate_codex_response_completed_usage
+
+    completed = _inflate_codex_response_completed_usage(
+        {
+            "type": "response.completed",
+            "response": {
+                "usage": {
+                    "input_tokens": 190_000,
+                    "output_tokens": 321,
+                    "input_tokens_details": {"cached_tokens": 180_000},
+                }
+            },
+        },
+        tokens_saved_delta=120_000,
+    )
+    assert completed is not None
+    usage = completed["response"]["usage"]
+    assert usage["input_tokens"] == 310_000
+    assert usage["output_tokens"] == 321
+    assert usage["input_tokens_details"]["cached_tokens"] == 180_000
+
+    recorded = handler.metrics.recorded_requests[-1]
+    assert recorded["input_tokens"] == 190_000
+    assert recorded["tokens_saved"] == 120_000
+
+
+@pytest.mark.asyncio
+async def test_ws_codex_usage_preserves_uncompressed_provider_usage():
+    upstream = _FakeUpstream(
+        [
+            json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
+            json.dumps(
+                {
+                    "type": "response.completed",
+                    "response": {
+                        "id": "r_1",
+                        "usage": {
+                            "input_tokens": 190_000,
+                            "output_tokens": 321,
+                            "input_tokens_details": {"cached_tokens": 180_000},
+                        },
+                    },
+                }
+            ),
+        ],
+        hold_after_events=True,
+    )
+    fake_ws_mod = _make_fake_websockets_module(upstream)
+    client_ws = _FakeWebSocket(
+        frames=[_first_frame()],
+        hold_after_initial=True,
+        disconnect_after_n_sends=2,
+    )
+    handler = _DummyOpenAIHandler()
+
+    with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
+        await handler.handle_openai_responses_ws(client_ws)
+
+    completed = [
+        json.loads(text)
+        for text in client_ws.sent_text
+        if json.loads(text).get("type") == "response.completed"
+    ][0]
+    assert completed["response"]["usage"]["input_tokens"] == 190_000
+    assert completed["response"]["usage"]["output_tokens"] == 321

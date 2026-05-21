@@ -261,6 +261,21 @@ RESPONSES_CONTEXT_SEARCH_TIMEOUT_SECONDS = 2.0
 WS_FIRST_FRAME_TIMEOUT_SECONDS = 60.0
 
 
+class OpenAIResponsesCompressionFailure(RuntimeError):
+    """Raised when an eligible WS response.create frame cannot be compressed."""
+
+
+def _headroom_ws_compression_failure_event(message: str) -> dict[str, Any]:
+    return {
+        "type": "error",
+        "error": {
+            "type": "server_error",
+            "code": "headroom_compression_failed",
+            "message": message,
+        },
+    }
+
+
 def _infer_openai_cache_write_tokens(input_tokens: int, cache_read_tokens: int) -> int:
     """Infer OpenAI automatic prompt-cache writes from uncached input tokens.
 
@@ -306,6 +321,43 @@ def _extract_responses_usage(event: dict[str, Any]) -> tuple[int, int, int, int,
     cache_write_tokens = _infer_openai_cache_write_tokens(input_tokens, cached_tokens)
     uncached_tokens = max(input_tokens - cached_tokens, 0)
     return input_tokens, output_tokens, cached_tokens, cache_write_tokens, uncached_tokens
+
+
+def _inflate_codex_response_completed_usage(
+    event: dict[str, Any],
+    *,
+    tokens_saved_delta: int,
+) -> dict[str, Any] | None:
+    """Return a Codex-facing copy with conservative original input pressure."""
+    def _usage_int(value: Any) -> int:
+        try:
+            return max(int(value), 0)
+        except (TypeError, ValueError):
+            return 0
+
+    if tokens_saved_delta <= 0 or event.get("type") != "response.completed":
+        return None
+
+    response = event.get("response")
+    if isinstance(response, dict) and isinstance(response.get("usage"), dict):
+        target = copy.deepcopy(event)
+        target_usage = target["response"]["usage"]
+    elif isinstance(event.get("usage"), dict):
+        target = copy.deepcopy(event)
+        target_usage = target["usage"]
+    else:
+        return None
+
+    input_tokens = _usage_int(target_usage.get("input_tokens"))
+    inflated_input_tokens = max(0, input_tokens + tokens_saved_delta)
+    target_usage["input_tokens"] = inflated_input_tokens
+
+    details = target_usage.get("input_tokens_details")
+    if isinstance(details, dict):
+        cached_tokens = _usage_int(details.get("cached_tokens"))
+        details["cached_tokens"] = min(cached_tokens, inflated_input_tokens)
+
+    return target
 
 
 def _decode_openai_bearer_payload(headers: dict[str, str]) -> dict[str, Any] | None:
@@ -3440,6 +3492,8 @@ class OpenAIHandlerMixin:
             # `_client_to_upstream` so long-lived subscription Codex
             # sessions get savings on every turn, not just the first.
 
+            ws_compression_failure_notified = False
+
             def _log_ws_passthrough(
                 reason: str,
                 *,
@@ -4234,21 +4288,14 @@ class OpenAIHandlerMixin:
                                             ),
                                             failed=True,
                                         )
-                                logger.warning(
-                                    "[%s] WS /v1/responses frame compression "
-                                    "failed; forwarding original: %s: %s",
+                                logger.exception(
+                                    "[%s] WS /v1/responses frame compression failed; "
+                                    "raw frame intentionally not forwarded",
                                     request_id,
-                                    type(_frame_err).__name__,
-                                    _frame_err,
                                 )
-                                _log_ws_passthrough(
-                                    "compression_exception",
-                                    frame_index=frame_index,
-                                    raw_bytes=len(raw_msg.encode("utf-8", errors="replace")),
-                                    frame_type="response.create",
-                                    model=str(inner_payload.get("model") or "unknown"),
-                                )
-                                return raw_msg, False, "compression_exception"
+                                raise OpenAIResponsesCompressionFailure(
+                                    "Headroom failed to compress response.create frame"
+                                ) from _frame_err
                             if not modified:
                                 reason = frame_reason or "no_compression"
                                 _log_ws_passthrough(
@@ -4304,6 +4351,7 @@ class OpenAIHandlerMixin:
                             nonlocal client_relay_error, ws_response_create_frames
                             nonlocal ws_client_frames_total, ws_cancel_frames
                             nonlocal ws_last_client_frame_type, ws_client_disconnect_seen
+                            nonlocal ws_compression_failure_notified
                             client_frame_index = 1
                             try:
                                 while True:
@@ -4356,14 +4404,37 @@ class OpenAIHandlerMixin:
                                         and _inbound_frame_body.get("type") == "response.create"
                                     ):
                                         ws_response_create_frames += 1
-                                    (
-                                        msg,
-                                        _frame_modified,
-                                        _frame_reason,
-                                    ) = await _maybe_compress_response_create_frame(
-                                        msg,
-                                        frame_index=client_frame_index,
-                                    )
+                                        try:
+                                            (
+                                                msg,
+                                                _frame_modified,
+                                                _frame_reason,
+                                            ) = await _maybe_compress_response_create_frame(
+                                                msg,
+                                                frame_index=client_frame_index,
+                                            )
+                                        except OpenAIResponsesCompressionFailure as _compression_failure:
+                                            ws_compression_failure_notified = True
+                                            logger.error(
+                                                "[%s] WS compression failed closed on frame %d; "
+                                                "raw frame intentionally not forwarded",
+                                                request_id,
+                                                client_frame_index,
+                                            )
+                                            error_event = _headroom_ws_compression_failure_event(
+                                                "Headroom failed to compress response.create; "
+                                                "the original oversized frame was not forwarded upstream."
+                                            )
+                                            with contextlib.suppress(Exception):
+                                                await websocket.send_text(json.dumps(error_event))
+                                            with contextlib.suppress(Exception):
+                                                await upstream.close()
+                                            with contextlib.suppress(Exception):
+                                                await websocket.close(
+                                                    code=1011,
+                                                    reason="Headroom compression failed",
+                                                )
+                                            raise _compression_failure
                                     _outbound_frame_body: Any = None
                                     try:
                                         _outbound_frame_body = json.loads(msg)
@@ -4388,8 +4459,26 @@ class OpenAIHandlerMixin:
                             except asyncio.CancelledError:
                                 # Explicit cancel from the outer
                                 # orchestrator — re-raise so
-                                # ``t.cancelled()`` and ``t.exception()``
-                                # behave correctly in the caller.
+                            # ``t.cancelled()`` and ``t.exception()``
+                            # behave correctly in the caller.
+                                raise
+                            except OpenAIResponsesCompressionFailure as relay_err:
+                                client_relay_error = relay_err
+                                if not ws_compression_failure_notified:
+                                    ws_compression_failure_notified = True
+                                    error_event = _headroom_ws_compression_failure_event(
+                                        "Headroom failed to compress response.create; "
+                                        "the original oversized frame was not forwarded upstream."
+                                    )
+                                    with contextlib.suppress(Exception):
+                                        await websocket.send_text(json.dumps(error_event))
+                                    with contextlib.suppress(Exception):
+                                        await upstream.close()
+                                    with contextlib.suppress(Exception):
+                                        await websocket.close(
+                                            code=1011,
+                                            reason="Headroom compression failed",
+                                        )
                                 raise
                             except Exception as relay_err:
                                 # Surface real errors to the classifier
@@ -4715,16 +4804,47 @@ class OpenAIHandlerMixin:
                                         ws_cache_write_tokens_total += usage_cache_write_tokens
                                         ws_uncached_input_tokens_total += usage_uncached_tokens
 
+                                    if not memory_enabled and event_type == "response.completed":
+                                        codex_usage_event = _inflate_codex_response_completed_usage(
+                                            event,
+                                            tokens_saved_delta=max(
+                                                0,
+                                                tokens_saved - ws_recorded_tokens_saved_total,
+                                            ),
+                                        )
+                                        await websocket.send_text(
+                                            json.dumps(codex_usage_event)
+                                            if codex_usage_event is not None
+                                            else msg_str
+                                        )
+                                        response_completed_seen = True
+                                        await _record_ws_response_metrics()
+                                        continue
+
+                                    codex_msg_str = msg_str
+                                    if event_type == "response.completed":
+                                        codex_usage_event = _inflate_codex_response_completed_usage(
+                                            event,
+                                            tokens_saved_delta=max(
+                                                0,
+                                                tokens_saved - ws_recorded_tokens_saved_total,
+                                            ),
+                                        )
+                                        if codex_usage_event is not None:
+                                            codex_msg_str = json.dumps(codex_usage_event)
+
                                     if not memory_enabled:
                                         if event_type == "response.completed":
                                             response_completed_seen = True
+                                            await websocket.send_text(codex_msg_str)
                                             await _record_ws_response_metrics()
-                                        await websocket.send_text(msg_str)
+                                        else:
+                                            await websocket.send_text(codex_msg_str)
                                         continue
 
                                     # --- Phase 1: Buffer until first output item ---
                                     if not decided:
-                                        event_buffer.append(msg_str)
+                                        event_buffer.append(codex_msg_str)
 
                                         if event_type == "response.output_item.added":
                                             item = event.get("item", {})
@@ -4837,20 +4957,20 @@ class OpenAIHandlerMixin:
                                         continue
 
                                     # --- Phase 2b: Pass-through mode ---
-                                    await websocket.send_text(msg_str)
+                                    await websocket.send_text(codex_msg_str)
 
                             except asyncio.CancelledError:
                                 raise
                             except Exception as relay_err:
-                                if "WebSocketDisconnect" not in type(relay_err).__name__:
-                                    # Capture for the outer classifier
-                                    # so ``upstream_error`` can be
-                                    # distinguished from a clean
-                                    # upstream disconnect.
-                                    upstream_relay_error = relay_err
-                                    logger.debug(
-                                        f"[{request_id}] WS upstream→client relay ended: {relay_err}"
-                                    )
+                                    if "WebSocketDisconnect" not in type(relay_err).__name__:
+                                        # Capture for the outer classifier
+                                        # so ``upstream_error`` can be
+                                        # distinguished from a clean
+                                        # upstream disconnect.
+                                        upstream_relay_error = relay_err
+                                        logger.debug(
+                                            f"[{request_id}] WS upstream→client relay ended: {relay_err}"
+                                        )
                             finally:
                                 with contextlib.suppress(Exception):
                                     await websocket.close()
@@ -5183,6 +5303,23 @@ class OpenAIHandlerMixin:
                     )
                 )
 
+        except OpenAIResponsesCompressionFailure as e:
+            logger.error(
+                "[%s] WS compression failed closed; original frame was not forwarded: %s",
+                request_id,
+                e,
+            )
+            if termination_cause == "unknown":
+                termination_cause = "client_error"
+            if not ws_compression_failure_notified:
+                error_event = _headroom_ws_compression_failure_event(
+                    "Headroom failed to compress response.create; "
+                    "the original oversized frame was not forwarded upstream."
+                )
+                with contextlib.suppress(Exception):
+                    await websocket.send_text(json.dumps(error_event))
+            with contextlib.suppress(Exception):
+                await websocket.close(code=1011, reason="Headroom compression failed")
         except Exception as e:
             if "WebSocketDisconnect" in type(e).__name__:
                 # Unit 3: client dropped the socket before or during
