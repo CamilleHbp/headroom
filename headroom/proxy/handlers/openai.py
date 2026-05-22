@@ -329,6 +329,7 @@ def _inflate_codex_response_completed_usage(
     tokens_saved_delta: int,
 ) -> dict[str, Any] | None:
     """Return a Codex-facing copy with conservative original input pressure."""
+
     def _usage_int(value: Any) -> int:
         try:
             return max(int(value), 0)
@@ -3191,6 +3192,9 @@ class OpenAIHandlerMixin:
                 logger.info(f"[{request_id}] /v1/responses {model}: {total_input_tokens:,} tokens")
 
                 # Capture Codex rate-limit window data from response headers
+                from headroom.subscription.codex_header_compat import (
+                    attach_latest_codex_rate_limit_headers,
+                )
                 from headroom.subscription.codex_rate_limits import (
                     get_codex_rate_limit_state,
                 )
@@ -3201,6 +3205,7 @@ class OpenAIHandlerMixin:
                 response_headers = dict(response.headers)
                 response_headers.pop("content-encoding", None)
                 response_headers.pop("content-length", None)
+                attach_latest_codex_rate_limit_headers(response_headers)
 
                 return Response(
                     content=response.content,
@@ -4185,6 +4190,26 @@ class OpenAIHandlerMixin:
                         ping_timeout=20,
                     ) as upstream:
                         ws_connected = True
+                        try:
+                            from headroom.subscription.codex_rate_limits import (
+                                get_codex_rate_limit_state as _get_codex_rate_limit_state,
+                            )
+
+                            upstream_response = getattr(upstream, "response", None)
+                            upstream_response_headers = getattr(upstream_response, "headers", None)
+                            if upstream_response_headers is not None:
+                                _get_codex_rate_limit_state().update_from_headers(
+                                    {
+                                        str(k).lower(): str(v)
+                                        for k, v in upstream_response_headers.items()
+                                    }
+                                )
+                        except Exception:
+                            logger.debug(
+                                "[%s] WS: failed to capture Codex usage headers",
+                                request_id,
+                                exc_info=True,
+                            )
                         if not _upstream_connect_recorded:
                             stage_timer.record(
                                 "upstream_connect",
@@ -4476,7 +4501,9 @@ class OpenAIHandlerMixin:
                                                 msg,
                                                 frame_index=client_frame_index,
                                             )
-                                        except OpenAIResponsesCompressionFailure as _compression_failure:
+                                        except (
+                                            OpenAIResponsesCompressionFailure
+                                        ) as _compression_failure:
                                             ws_compression_failure_notified = True
                                             logger.error(
                                                 "[%s] WS compression failed closed on frame %d; "
@@ -4522,8 +4549,8 @@ class OpenAIHandlerMixin:
                             except asyncio.CancelledError:
                                 # Explicit cancel from the outer
                                 # orchestrator — re-raise so
-                            # ``t.cancelled()`` and ``t.exception()``
-                            # behave correctly in the caller.
+                                # ``t.cancelled()`` and ``t.exception()``
+                                # behave correctly in the caller.
                                 raise
                             except OpenAIResponsesCompressionFailure as relay_err:
                                 client_relay_error = relay_err
@@ -5025,15 +5052,15 @@ class OpenAIHandlerMixin:
                             except asyncio.CancelledError:
                                 raise
                             except Exception as relay_err:
-                                    if "WebSocketDisconnect" not in type(relay_err).__name__:
-                                        # Capture for the outer classifier
-                                        # so ``upstream_error`` can be
-                                        # distinguished from a clean
-                                        # upstream disconnect.
-                                        upstream_relay_error = relay_err
-                                        logger.debug(
-                                            f"[{request_id}] WS upstream→client relay ended: {relay_err}"
-                                        )
+                                if "WebSocketDisconnect" not in type(relay_err).__name__:
+                                    # Capture for the outer classifier
+                                    # so ``upstream_error`` can be
+                                    # distinguished from a clean
+                                    # upstream disconnect.
+                                    upstream_relay_error = relay_err
+                                    logger.debug(
+                                        f"[{request_id}] WS upstream→client relay ended: {relay_err}"
+                                    )
                             finally:
                                 with contextlib.suppress(Exception):
                                     await websocket.close()

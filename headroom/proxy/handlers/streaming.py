@@ -14,6 +14,10 @@ from typing import TYPE_CHECKING, Any
 
 from headroom.proxy.auth_mode import classify_client
 from headroom.proxy.helpers import jitter_delay_ms
+from headroom.subscription.codex_header_compat import (
+    attach_latest_codex_rate_limit_headers,
+)
+from headroom.subscription.codex_rate_limits import get_codex_rate_limit_state
 
 if TYPE_CHECKING:
     from fastapi.responses import Response, StreamingResponse
@@ -1050,10 +1054,15 @@ class StreamingMixin:
                 headers=response_headers,
             )
 
-        # Forward upstream ratelimit headers to the client
+        # Forward upstream ratelimit and Codex quota headers to the client.
         forwarded_headers = {
-            k: v for k, v in upstream_response.headers.items() if "ratelimit" in k.lower()
+            k: v
+            for k, v in upstream_response.headers.items()
+            if "ratelimit" in k.lower() or k.lower().startswith("x-codex-")
         }
+        if _codex_wire_debug:
+            get_codex_rate_limit_state().update_from_headers(dict(upstream_response.headers))
+            attach_latest_codex_rate_limit_headers(forwarded_headers)
 
         async def generate():
             nonlocal body, memory_enabled  # May need to modify for continuation requests

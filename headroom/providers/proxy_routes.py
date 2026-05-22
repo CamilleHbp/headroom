@@ -5,13 +5,17 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+from pathlib import Path
 from typing import Any, cast
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request, WebSocket
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from headroom.proxy.handlers.openai import _resolve_codex_routing_headers
+from headroom.subscription.codex_rate_limits import get_codex_rate_limit_state
+from headroom.subscription.codex_usage_compat import codex_usage_payload_from_snapshot
 
 logger = logging.getLogger("headroom.proxy.routes")
 
@@ -310,6 +314,105 @@ async def _handle_chatgpt_model_metadata(
     except Exception as exc:
         logger.error("Passthrough %s failed: %s", upstream_path, exc)
         return Response(content=str(exc), status_code=502)
+
+
+def _codex_usage_snapshot_response() -> JSONResponse:
+    snapshot = get_codex_rate_limit_state().latest
+    return JSONResponse(
+        content=codex_usage_payload_from_snapshot(snapshot),
+        headers={
+            "x-headroom-codex-usage-source": "snapshot"
+            if snapshot is not None
+            else "empty"
+        },
+    )
+
+
+def _normalize_codex_usage_path(path: str) -> str:
+    if path.startswith("/v1/"):
+        path = path[3:]
+    if path == "/wham/usage":
+        return "/backend-api/wham/usage"
+    return path
+
+
+def _load_codex_chatgpt_auth_headers(
+    codex_home: Path | None = None,
+) -> dict[str, str] | None:
+    """Load Codex Desktop ChatGPT auth for unauthenticated usage polls."""
+
+    home = codex_home or Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
+    auth_path = home / "auth.json"
+    try:
+        payload = json.loads(auth_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    tokens = payload.get("tokens")
+    if not isinstance(tokens, dict):
+        return None
+
+    access_token = tokens.get("access_token")
+    if not isinstance(access_token, str) or not access_token.strip():
+        return None
+
+    headers = {"authorization": f"Bearer {access_token.strip()}"}
+    account_id = tokens.get("account_id")
+    if isinstance(account_id, str) and account_id.strip():
+        headers["ChatGPT-Account-ID"] = account_id.strip()
+    return headers
+
+
+async def _handle_codex_usage(proxy: Any, request: Request) -> Response:
+    fallback = _codex_usage_snapshot_response()
+    headers = dict(request.headers.items())
+    headers.pop("host", None)
+    headers.pop("accept-encoding", None)
+    headers, is_chatgpt_auth = _resolve_codex_routing_headers(headers)
+
+    if not is_chatgpt_auth:
+        local_headers = _load_codex_chatgpt_auth_headers()
+        if local_headers is None:
+            logger.info(
+                "Codex usage request %s served from local %s snapshot; no ChatGPT auth",
+                request.url.path,
+                fallback.headers.get("x-headroom-codex-usage-source", "unknown"),
+            )
+            return fallback
+        headers, is_chatgpt_auth = _resolve_codex_routing_headers(local_headers)
+
+    upstream_path = _normalize_codex_usage_path(request.url.path)
+    url = f"https://chatgpt.com{upstream_path}"
+    if request.url.query:
+        url = f"{url}?{request.url.query}"
+    logger.info("Codex usage request %s -> %s", request.url.path, url)
+
+    body = await request.body()
+
+    try:
+        assert proxy.http_client is not None
+        response = await proxy.http_client.request(
+            request.method,
+            url,
+            headers=headers,
+            content=body,
+            timeout=120.0,
+        )
+    except Exception as exc:
+        logger.info("Codex usage request using local fallback after upstream error: %s", exc)
+        return fallback
+
+    response_headers = dict(response.headers)
+    response_headers.pop("content-encoding", None)
+    response_headers.pop("content-length", None)
+    if response.status_code < 400:
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers,
+        )
+    logger.info("Codex usage request using local fallback after upstream status %d", response.status_code)
+    return fallback
 
 
 def register_provider_routes(app: FastAPI, proxy: Any) -> None:
@@ -635,6 +738,15 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
             "cachedContents",
             "gemini",
         )
+
+    @app.get("/v1/wham/usage")
+    @app.get("/v1/backend-api/wham/usage")
+    @app.get("/v1/api/codex/usage")
+    @app.get("/backend-api/wham/usage")
+    @app.get("/wham/usage")
+    @app.get("/api/codex/usage")
+    async def codex_usage(request: Request):
+        return await _handle_codex_usage(proxy, request)
 
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
     async def passthrough(request: Request, path: str):
