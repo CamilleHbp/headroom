@@ -2918,42 +2918,6 @@ class OpenAIHandlerMixin:
                     f"[{request_id}] /v1/responses compression failed "
                     f"(bytes={_http_body_bytes}): {type(_e).__name__}: {_e}"
                 )
-                # Fail-closed protection (default): refuse to forward
-                # oversized requests after compression failure. Same
-                # decision matrix and override env var as the WS path
-                # (HEADROOM_WS_FAIL_OPEN_ON_COMPRESSION_FAILURE) — see
-                # helpers.decide_compression_failure_action.
-                from headroom.proxy.helpers import (
-                    decide_compression_failure_action,
-                )
-
-                _http_action = decide_compression_failure_action(_e, _http_body_bytes)
-                if _http_action.refuse:
-                    logger.error(
-                        "[%s] /v1/responses REFUSING to forward request "
-                        "after compression failure (reason=%s, bytes=%d); "
-                        "returning HTTP 413 so the client can compact "
-                        "context and retry. To restore legacy passthrough "
-                        "behaviour set "
-                        "HEADROOM_WS_FAIL_OPEN_ON_COMPRESSION_FAILURE=1.",
-                        request_id,
-                        _http_action.reason,
-                        _http_action.frame_bytes,
-                    )
-                    raise HTTPException(
-                        status_code=413,
-                        detail={
-                            "error": {
-                                "type": "compression_refused",
-                                "message": (
-                                    f"headroom: compression "
-                                    f"{_http_action.reason} on a "
-                                    f"{_http_body_bytes}-byte request "
-                                    "— please compact context and retry."
-                                ),
-                            }
-                        },
-                    ) from _e
 
         capture_codex_wire_debug(
             "http_upstream_request",
