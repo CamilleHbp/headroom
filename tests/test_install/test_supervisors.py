@@ -39,6 +39,13 @@ def _manifest(
     )
 
 
+class _RunResult:
+    def __init__(self, returncode: int = 0, stdout: str = "", stderr: str = "") -> None:
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
 def test_linux_service_unit_uses_user_systemd_path(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     manifest = _manifest()
@@ -337,9 +344,22 @@ def test_install_supervisor_darwin_windows_and_unsupported(monkeypatch, tmp_path
 
 def test_start_and_stop_supervisor_darwin_windows_and_none(monkeypatch) -> None:
     calls: list[list[str]] = []
+
+    class Result:
+        def __init__(
+            self, returncode: int = 0, stdout: str = "", stderr: str = ""
+        ) -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    def fake_run(command: list[str], **kwargs):
+        calls.append(command)
+        return Result(1) if command[:2] == ["launchctl", "print"] else Result()
+
     monkeypatch.setattr(
         "headroom.install.supervisors.subprocess.run",
-        lambda command, **kwargs: calls.append(command),
+        fake_run,
     )
     monkeypatch.setattr("headroom.install.supervisors.os.getuid", lambda: 77, raising=False)
 
@@ -352,12 +372,18 @@ def test_start_and_stop_supervisor_darwin_windows_and_none(monkeypatch) -> None:
     start_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
     stop_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
     assert calls == [
+        ["launchctl", "print", "gui/77/com.headroom.default"],
+        [
+            "launchctl",
+            "bootstrap",
+            "gui/77",
+            str(Path.home() / "Library" / "LaunchAgents" / "com.headroom.default.plist"),
+        ],
         ["launchctl", "kickstart", "-k", "gui/77/com.headroom.default"],
-        ["launchctl", "bootout", "gui/77/com.headroom.default"],
+        ["launchctl", "print", "gui/77/com.headroom.default"],
     ]
 
     calls.clear()
-    monkeypatch.setattr("headroom.install.supervisors.sys.platform", "win32")
     monkeypatch.setattr("headroom.install.supervisors.sys.platform", "win32")
     start_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
     stop_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
@@ -365,6 +391,211 @@ def test_start_and_stop_supervisor_darwin_windows_and_none(monkeypatch) -> None:
         ["sc.exe", "start", "headroom-default"],
         ["sc.exe", "stop", "headroom-default"],
     ]
+
+
+def test_start_supervisor_darwin_accepts_kickstart_exit_37(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr("headroom.install.supervisors.sys.platform", "darwin")
+    monkeypatch.setattr("headroom.install.supervisors.os.getuid", lambda: 77, raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    def fake_run(command: list[str], **kwargs):
+        calls.append(command)
+        if command[:2] == ["launchctl", "print"]:
+            return _RunResult(1)
+        if command[:3] == ["launchctl", "kickstart", "-k"]:
+            return _RunResult(37, stdout="service already running")
+        return _RunResult()
+
+    monkeypatch.setattr("headroom.install.supervisors.subprocess.run", fake_run)
+
+    start_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
+
+    assert calls == [
+        ["launchctl", "print", "gui/77/com.headroom.default"],
+        [
+            "launchctl",
+            "bootstrap",
+            "gui/77",
+            str(tmp_path / "Library" / "LaunchAgents" / "com.headroom.default.plist"),
+        ],
+        ["launchctl", "kickstart", "-k", "gui/77/com.headroom.default"],
+    ]
+
+
+def test_start_supervisor_darwin_raises_click_exception_for_bootstrap_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("headroom.install.supervisors.sys.platform", "darwin")
+    monkeypatch.setattr("headroom.install.supervisors.os.getuid", lambda: 77, raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    def fake_run(command: list[str], **kwargs):
+        if command[:2] == ["launchctl", "print"]:
+            return _RunResult(1)
+        if command[:2] == ["launchctl", "bootstrap"]:
+            return _RunResult(5, stdout="bootstrap stdout", stderr="bootstrap stderr")
+        return _RunResult()
+
+    monkeypatch.setattr("headroom.install.supervisors.subprocess.run", fake_run)
+
+    with pytest.raises(click.ClickException) as exc_info:
+        start_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
+
+    message = str(exc_info.value)
+    assert "launchctl bootstrap" in message
+    assert "bootstrap stderr" in message
+    assert "bootstrap stdout" in message
+
+
+def test_start_supervisor_darwin_reports_bootout_failure_when_still_loaded(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr("headroom.install.supervisors.sys.platform", "darwin")
+    monkeypatch.setattr("headroom.install.supervisors.os.getuid", lambda: 77, raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    def fake_run(command: list[str], **kwargs) -> _RunResult:
+        calls.append(command)
+        if command[:2] == ["launchctl", "print"]:
+            return _RunResult(0)
+        if command[:2] == ["launchctl", "bootout"]:
+            return _RunResult(1, stdout="bootout stdout", stderr="bootout stderr")
+        return _RunResult()
+
+    monkeypatch.setattr("headroom.install.supervisors.subprocess.run", fake_run)
+
+    with pytest.raises(click.ClickException) as exc_info:
+        start_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
+
+    message = str(exc_info.value)
+    assert "launchctl bootout gui/77/com.headroom.default" in message
+    assert "bootout stderr" in message
+    assert "bootout stdout" in message
+    assert not any(command[:2] == ["launchctl", "bootstrap"] for command in calls)
+
+
+def test_start_supervisor_darwin_accepts_loaded_service_after_bootstrap_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls: list[list[str]] = []
+    print_calls = 0
+    monkeypatch.setattr("headroom.install.supervisors.sys.platform", "darwin")
+    monkeypatch.setattr("headroom.install.supervisors.os.getuid", lambda: 77, raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    def fake_run(command: list[str], **kwargs) -> _RunResult:
+        nonlocal print_calls
+        calls.append(command)
+        if command[:2] == ["launchctl", "print"]:
+            print_calls += 1
+            return _RunResult(0 if print_calls == 2 else 1)
+        if command[:2] == ["launchctl", "bootstrap"]:
+            return _RunResult(5, stdout="bootstrap stdout", stderr="bootstrap stderr")
+        return _RunResult()
+
+    monkeypatch.setattr("headroom.install.supervisors.subprocess.run", fake_run)
+
+    start_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
+
+    assert ["launchctl", "bootstrap", "gui/77", str(tmp_path / "Library" / "LaunchAgents" / "com.headroom.default.plist")] in calls
+    assert not any(command[:3] == ["launchctl", "kickstart", "-k"] for command in calls)
+
+
+def test_start_supervisor_darwin_raises_click_exception_for_kickstart_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("headroom.install.supervisors.sys.platform", "darwin")
+    monkeypatch.setattr("headroom.install.supervisors.os.getuid", lambda: 77, raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    def fake_run(command: list[str], **kwargs):
+        if command[:2] == ["launchctl", "print"]:
+            return _RunResult(1)
+        if command[:3] == ["launchctl", "kickstart", "-k"]:
+            return _RunResult(78, stdout="kick stdout", stderr="kick stderr")
+        return _RunResult()
+
+    monkeypatch.setattr("headroom.install.supervisors.subprocess.run", fake_run)
+
+    with pytest.raises(click.ClickException) as exc_info:
+        start_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
+
+    message = str(exc_info.value)
+    assert "launchctl kickstart -k gui/77/com.headroom.default" in message
+    assert "kick stderr" in message
+    assert "kick stdout" in message
+
+
+def test_start_supervisor_darwin_bootout_only_when_loaded(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr("headroom.install.supervisors.sys.platform", "darwin")
+    monkeypatch.setattr("headroom.install.supervisors.os.getuid", lambda: 77, raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    def fake_run(command: list[str], **kwargs):
+        calls.append(command)
+        return _RunResult()
+
+    monkeypatch.setattr("headroom.install.supervisors.subprocess.run", fake_run)
+
+    start_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
+
+    assert calls[0] == ["launchctl", "print", "gui/77/com.headroom.default"]
+    assert ["launchctl", "bootout", "gui/77/com.headroom.default"] in calls
+
+    calls.clear()
+
+    def fake_run_unloaded(command: list[str], **kwargs):
+        calls.append(command)
+        if command[:2] == ["launchctl", "print"]:
+            return _RunResult(1)
+        return _RunResult()
+
+    monkeypatch.setattr("headroom.install.supervisors.subprocess.run", fake_run_unloaded)
+
+    start_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
+
+    assert calls[0] == ["launchctl", "print", "gui/77/com.headroom.default"]
+    assert ["launchctl", "bootout", "gui/77/com.headroom.default"] not in calls
+
+
+def test_stop_supervisor_darwin_bootout_only_when_loaded(monkeypatch) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr("headroom.install.supervisors.sys.platform", "darwin")
+    monkeypatch.setattr("headroom.install.supervisors.os.getuid", lambda: 77, raising=False)
+
+    def fake_run(command: list[str], **kwargs):
+        calls.append(command)
+        return _RunResult()
+
+    monkeypatch.setattr("headroom.install.supervisors.subprocess.run", fake_run)
+
+    stop_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
+
+    assert calls == [
+        ["launchctl", "print", "gui/77/com.headroom.default"],
+        ["launchctl", "bootout", "gui/77/com.headroom.default"],
+    ]
+
+    calls.clear()
+
+    def fake_run_unloaded(command: list[str], **kwargs):
+        calls.append(command)
+        if command[:2] == ["launchctl", "print"]:
+            return _RunResult(3, stderr="No such process")
+        return _RunResult()
+
+    monkeypatch.setattr("headroom.install.supervisors.subprocess.run", fake_run_unloaded)
+
+    stop_supervisor(_manifest(supervisor=SupervisorKind.SERVICE.value))
+
+    assert calls == [["launchctl", "print", "gui/77/com.headroom.default"]]
 
 
 def test_remove_supervisor_removes_user_crontab_block(monkeypatch) -> None:

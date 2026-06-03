@@ -274,6 +274,10 @@ def runtime_status(manifest: DeploymentManifest) -> str:
         return "stopped"
     try:
         os.kill(pid, 0)
+    except ProcessLookupError:
+        return "stopped"
+    except PermissionError:
+        return "running"
     except OSError:
         return "stopped"
     return "running"

@@ -120,15 +120,7 @@ WantedBy=default.target
 def _macos_launchd_plist(
     manifest: DeploymentManifest, command_path: Path, *, interval: int | None = None
 ) -> tuple[Path, str]:
-    if manifest.supervisor_kind == SupervisorKind.SERVICE.value:
-        base_dir = (
-            Path("/Library/LaunchDaemons")
-            if manifest.scope == "system"
-            else Path.home() / "Library" / "LaunchAgents"
-        )
-    else:
-        base_dir = Path.home() / "Library" / "LaunchAgents"
-    plist_path = base_dir / f"com.headroom.{manifest.profile}.plist"
+    service, _, plist_path = _macos_launchd_context(manifest)
     program = str(command_path)
     keys = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -136,7 +128,7 @@ def _macos_launchd_plist(
         '<plist version="1.0">',
         "<dict>",
         "  <key>Label</key>",
-        f"  <string>com.headroom.{manifest.profile}</string>",
+        f"  <string>{service}</string>",
         "  <key>ProgramArguments</key>",
         "  <array>",
         f"    <string>{program}</string>",
@@ -150,6 +142,49 @@ def _macos_launchd_plist(
         keys.extend(["  <key>KeepAlive</key>", "  <true/>"])
     keys.extend(["</dict>", "</plist>"])
     return plist_path, "\n".join(keys) + "\n"
+
+
+def _macos_launchd_context(manifest: DeploymentManifest) -> tuple[str, str, Path]:
+    service = f"com.headroom.{manifest.profile}"
+    getuid = getattr(os, "getuid", lambda: 0)
+    bootstrap_domain = (
+        "system"
+        if manifest.scope == "system"
+        and manifest.supervisor_kind == SupervisorKind.SERVICE.value
+        else f"gui/{getuid()}"
+    )
+    if manifest.supervisor_kind == SupervisorKind.SERVICE.value:
+        base_dir = (
+            Path("/Library/LaunchDaemons")
+            if manifest.scope == "system"
+            else Path.home() / "Library" / "LaunchAgents"
+        )
+    else:
+        base_dir = Path.home() / "Library" / "LaunchAgents"
+    return service, bootstrap_domain, base_dir / f"{service}.plist"
+
+
+def _launchctl_failure_message(
+    args: list[str], result: subprocess.CompletedProcess[str]
+) -> str:
+    command = ["launchctl", *args]
+    return "\n".join(
+        part
+        for part in [
+            f"launchctl failed: {' '.join(command)}",
+            result.stderr.strip(),
+            result.stdout.strip(),
+        ]
+        if part
+    )
+
+
+def _launchctl(args: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    command = ["launchctl", *args]
+    result = subprocess.run(command, capture_output=True, text=True)
+    if check and result.returncode != 0:
+        raise click.ClickException(_launchctl_failure_message(args, result))
+    return result
 
 
 def _linux_task_spec(manifest: DeploymentManifest, ensure_script: Path) -> tuple[Path | None, str]:
@@ -303,14 +338,38 @@ def start_supervisor(manifest: DeploymentManifest) -> None:
         subprocess.run(["systemctl", *flags, "restart", manifest.service_name], check=True)
         return
     if sys.platform == "darwin":
-        label = f"com.headroom.{manifest.profile}"
-        domain = (
-            "system"
-            if manifest.scope == "system"
-            and manifest.supervisor_kind == SupervisorKind.SERVICE.value
-            else f"gui/{os.getuid()}"
-        )
-        subprocess.run(["launchctl", "kickstart", "-k", f"{domain}/{label}"], check=True)
+        service, bootstrap_domain, plist_path = _macos_launchd_context(manifest)
+        service_target = f"{bootstrap_domain}/{service}"
+        if _launchctl(["print", service_target], check=False).returncode == 0:
+            bootout = _launchctl(["bootout", service_target], check=False)
+            if (
+                bootout.returncode != 0
+                and _launchctl(["print", service_target], check=False).returncode == 0
+            ):
+                raise click.ClickException(
+                    _launchctl_failure_message(["bootout", service_target], bootout)
+                )
+        bootstrap = _launchctl(["bootstrap", bootstrap_domain, str(plist_path)], check=False)
+        if bootstrap.returncode != 0:
+            if _launchctl(["print", service_target], check=False).returncode != 0:
+                raise click.ClickException(
+                    _launchctl_failure_message(
+                        ["bootstrap", bootstrap_domain, str(plist_path)], bootstrap
+                    )
+                )
+            return
+        kickstart = _launchctl(["kickstart", "-k", service_target], check=False)
+        if kickstart.returncode not in {0, 37}:
+            output = "\n".join(
+                part
+                for part in [
+                    f"launchctl failed: launchctl kickstart -k {service_target}",
+                    kickstart.stderr.strip(),
+                    kickstart.stdout.strip(),
+                ]
+                if part
+            )
+            raise click.ClickException(output)
         return
     if _is_windows() and manifest.supervisor_kind == SupervisorKind.SERVICE.value:
         subprocess.run(["sc.exe", "start", manifest.service_name], check=True)
@@ -326,14 +385,10 @@ def stop_supervisor(manifest: DeploymentManifest) -> None:
         subprocess.run(["systemctl", *flags, "stop", manifest.service_name], check=True)
         return
     if sys.platform == "darwin":
-        label = f"com.headroom.{manifest.profile}"
-        domain = (
-            "system"
-            if manifest.scope == "system"
-            and manifest.supervisor_kind == SupervisorKind.SERVICE.value
-            else f"gui/{os.getuid()}"
-        )
-        subprocess.run(["launchctl", "bootout", f"{domain}/{label}"], check=True)
+        service, bootstrap_domain, _ = _macos_launchd_context(manifest)
+        service_target = f"{bootstrap_domain}/{service}"
+        if _launchctl(["print", service_target], check=False).returncode == 0:
+            _launchctl(["bootout", service_target], check=False)
         return
     if _is_windows() and manifest.supervisor_kind == SupervisorKind.SERVICE.value:
         subprocess.run(["sc.exe", "stop", manifest.service_name], check=True)
@@ -382,15 +437,11 @@ def remove_supervisor(manifest: DeploymentManifest) -> None:
             else unix_ensure_script_path(manifest.profile),
             interval=300 if manifest.supervisor_kind == SupervisorKind.TASK.value else None,
         )
-        label = f"com.headroom.{manifest.profile}"
-        domain = (
-            "system"
-            if manifest.scope == "system"
-            and manifest.supervisor_kind == SupervisorKind.SERVICE.value
-            else f"gui/{os.getuid()}"
-        )
+        service, bootstrap_domain, _ = _macos_launchd_context(manifest)
         subprocess.run(
-            ["launchctl", "bootout", f"{domain}/{label}"], capture_output=True, text=True
+            ["launchctl", "bootout", f"{bootstrap_domain}/{service}"],
+            capture_output=True,
+            text=True,
         )
         if plist_path.exists():
             plist_path.unlink()
