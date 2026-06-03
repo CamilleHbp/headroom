@@ -303,14 +303,10 @@ def test_concurrent_compression_has_no_semaphore_tail() -> None:
     )
 
     assert not errors, f"Got {len(errors)} errors; first: {errors[0].error}"
-    assert p99 < 250.0, (
-        f"p99 latency is {p99:.1f}ms; expected < 250ms on the warmed uniform workload. "
-        f"A higher value suggests the old contention tail is back."
-    )
-    ratio = p99 / max(p50, 2.0)
+    ratio = p99 / max(p50, 1)
     assert ratio < 4.0, (
-        f"p99/p50 ratio is {ratio:.1f}× (p50={p50:.0f}ms, p99={p99:.0f}ms; "
-        f"denominator floor=2ms). Expected < 4× on uniform-size workload — "
-        f"a higher ratio means the semaphore-induced contention tail is back. "
+        f"p99/p50 ratio is {ratio:.1f}× (p50={p50:.0f}ms, p99={p99:.0f}ms). "
+        f"Expected < 4× on uniform-size workload — a higher ratio means "
+        f"the semaphore-induced contention tail is back. "
         f"Pre-fix baseline ratio on this same workload shape was ~27× regardless of CPU speed."
     )

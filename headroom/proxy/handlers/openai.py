@@ -4097,35 +4097,9 @@ class OpenAIHandlerMixin:
                     # client gets a clear "compact and retry" signal.
                     # See helpers.decide_compression_failure_action for the
                     # decision matrix and env-var overrides.
-                    from headroom.proxy.helpers import (
-                        decide_compression_failure_action,
-                    )
-
-                    _ws_action = decide_compression_failure_action(_ce, _ws_frame_bytes)
-                    if _ws_action.refuse:
-                        logger.error(
-                            "[%s] WS /v1/responses REFUSING to forward "
-                            "frame after compression failure "
-                            "(reason=%s, bytes=%d); closing client "
-                            "websocket with 1009 so client can compact "
-                            "context and retry. To restore legacy "
-                            "passthrough behaviour set "
-                            "HEADROOM_WS_FAIL_OPEN_ON_COMPRESSION_FAILURE=1.",
-                            request_id,
-                            _ws_action.reason,
-                            _ws_action.frame_bytes,
-                        )
-                        termination_cause = "compression_refused"
-                        with contextlib.suppress(Exception):
-                            await websocket.close(
-                                code=1009,
-                                reason=(
-                                    "headroom: compression "
-                                    f"{_ws_action.reason} — please "
-                                    "compact context and retry"
-                                ),
-                            )
-                        return
+                    raise OpenAIResponsesCompressionFailure(
+                        "Headroom failed to compress first response.create frame"
+                    ) from _ce
             else:
                 _log_ws_passthrough(
                     "bypass_header" if _ws_bypass else "optimize_disabled",
