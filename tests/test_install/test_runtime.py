@@ -466,3 +466,59 @@ def test_runtime_status_reads_container_and_pid_state(monkeypatch, tmp_path: Pat
         backend="anthropic",
     )
     assert runtime_status(python_manifest) == "running"
+
+
+def test_runtime_status_treats_permission_error_as_running(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    pid_file = tmp_path / ".headroom" / "deploy" / "default" / "runner.pid"
+    pid_file.parent.mkdir(parents=True)
+    pid_file.write_text("123", encoding="utf-8")
+
+    def deny_signal(pid: int, sig: int) -> None:
+        raise PermissionError
+
+    monkeypatch.setattr("headroom.install.runtime.os.kill", deny_signal)
+    manifest = DeploymentManifest(
+        profile="default",
+        preset="persistent-service",
+        runtime_kind="python",
+        supervisor_kind="service",
+        scope="user",
+        provider_mode="manual",
+        targets=[],
+        port=8787,
+        host="127.0.0.1",
+        backend="anthropic",
+    )
+
+    assert runtime_status(manifest) == "running"
+
+
+def test_runtime_status_treats_missing_process_as_stopped(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    pid_file = tmp_path / ".headroom" / "deploy" / "default" / "runner.pid"
+    pid_file.parent.mkdir(parents=True)
+    pid_file.write_text("123", encoding="utf-8")
+
+    def missing_process(pid: int, sig: int) -> None:
+        raise ProcessLookupError
+
+    monkeypatch.setattr("headroom.install.runtime.os.kill", missing_process)
+    manifest = DeploymentManifest(
+        profile="default",
+        preset="persistent-service",
+        runtime_kind="python",
+        supervisor_kind="service",
+        scope="user",
+        provider_mode="manual",
+        targets=[],
+        port=8787,
+        host="127.0.0.1",
+        backend="anthropic",
+    )
+
+    assert runtime_status(manifest) == "stopped"
