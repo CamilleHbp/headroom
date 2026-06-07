@@ -47,9 +47,14 @@ def _render_windows_runner(
 ) -> list[ArtifactRecord]:
     ps1_path.parent.mkdir(parents=True, exist_ok=True)
     escaped = " ".join(
-        [f'"{item}"' if (" " in item or item.endswith(".cmd")) else item for item in command]
+        [
+            f'"{item}"' if (" " in item or item.endswith(".cmd")) else item
+            for item in command
+        ]
     )
-    ps1_path.write_text(f"$ErrorActionPreference = 'Stop'\n& {escaped}\nexit $LASTEXITCODE\n")
+    ps1_path.write_text(
+        f"$ErrorActionPreference = 'Stop'\n& {escaped}\nexit $LASTEXITCODE\n"
+    )
     cmd_path.write_text(
         '@echo off\r\npowershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0'
         + ps1_path.name
@@ -70,14 +75,18 @@ def render_runner_scripts(manifest: DeploymentManifest) -> list[ArtifactRecord]:
             _render_windows_runner(
                 windows_run_script_path(manifest.profile),
                 windows_run_cmd_path(manifest.profile),
-                _command_for_script("install", "agent", "run", "--profile", manifest.profile),
+                _command_for_script(
+                    "install", "agent", "run", "--profile", manifest.profile
+                ),
             )
         )
         records.extend(
             _render_windows_runner(
                 windows_ensure_script_path(manifest.profile),
                 windows_ensure_cmd_path(manifest.profile),
-                _command_for_script("install", "agent", "ensure", "--profile", manifest.profile),
+                _command_for_script(
+                    "install", "agent", "ensure", "--profile", manifest.profile
+                ),
             )
         )
         return records
@@ -85,21 +94,31 @@ def render_runner_scripts(manifest: DeploymentManifest) -> list[ArtifactRecord]:
     return [
         _render_unix_runner(
             unix_run_script_path(manifest.profile),
-            _command_for_script("install", "agent", "run", "--profile", manifest.profile),
+            _command_for_script(
+                "install", "agent", "run", "--profile", manifest.profile
+            ),
         ),
         _render_unix_runner(
             unix_ensure_script_path(manifest.profile),
-            _command_for_script("install", "agent", "ensure", "--profile", manifest.profile),
+            _command_for_script(
+                "install", "agent", "ensure", "--profile", manifest.profile
+            ),
         ),
     ]
 
 
-def _linux_service_unit(manifest: DeploymentManifest, run_script: Path) -> tuple[Path, str]:
+def _linux_service_unit(
+    manifest: DeploymentManifest, run_script: Path
+) -> tuple[Path, str]:
     if manifest.scope == "system":
         unit_path = Path("/etc/systemd/system") / f"{manifest.service_name}.service"
     else:
         unit_path = (
-            Path.home() / ".config" / "systemd" / "user" / f"{manifest.service_name}.service"
+            Path.home()
+            / ".config"
+            / "systemd"
+            / "user"
+            / f"{manifest.service_name}.service"
         )
     content = f"""[Unit]
 Description=Headroom ({manifest.profile})
@@ -179,7 +198,9 @@ def _launchctl_failure_message(
     )
 
 
-def _launchctl(args: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _launchctl(
+    args: list[str], *, check: bool = True
+) -> subprocess.CompletedProcess[str]:
     command = ["launchctl", *args]
     result = subprocess.run(command, capture_output=True, text=True)
     if check and result.returncode != 0:
@@ -187,7 +208,9 @@ def _launchctl(args: list[str], *, check: bool = True) -> subprocess.CompletedPr
     return result
 
 
-def _linux_task_spec(manifest: DeploymentManifest, ensure_script: Path) -> tuple[Path | None, str]:
+def _linux_task_spec(
+    manifest: DeploymentManifest, ensure_script: Path
+) -> tuple[Path | None, str]:
     if manifest.scope == "system":
         cron_path = Path("/etc/cron.d") / manifest.service_name
         content = f"@reboot root {ensure_script}\n*/5 * * * * root {ensure_script}\n"
@@ -195,9 +218,7 @@ def _linux_task_spec(manifest: DeploymentManifest, ensure_script: Path) -> tuple
 
     marker_start = f"# >>> headroom {manifest.profile} >>>"
     marker_end = f"# <<< headroom {manifest.profile} <<<"
-    content = (
-        f"{marker_start}\n@reboot {ensure_script}\n*/5 * * * * {ensure_script}\n{marker_end}\n"
-    )
+    content = f"{marker_start}\n@reboot {ensure_script}\n*/5 * * * * {ensure_script}\n{marker_end}\n"
     return None, content
 
 
@@ -214,17 +235,26 @@ def install_supervisor(manifest: DeploymentManifest) -> list[ArtifactRecord]:
         sys.platform.startswith("linux")
         and manifest.supervisor_kind == SupervisorKind.SERVICE.value
     ):
-        unit_path, content = _linux_service_unit(manifest, artifact_paths["run-headroom.sh"])
+        unit_path, content = _linux_service_unit(
+            manifest, artifact_paths["run-headroom.sh"]
+        )
         unit_path.parent.mkdir(parents=True, exist_ok=True)
         unit_path.write_text(content)
         flags = [] if manifest.scope == "system" else ["--user"]
         subprocess.run(["systemctl", *flags, "daemon-reload"], check=True)
-        subprocess.run(["systemctl", *flags, "enable", manifest.service_name], check=True)
+        subprocess.run(
+            ["systemctl", *flags, "enable", manifest.service_name], check=True
+        )
         records.append(ArtifactRecord(kind="service-unit", path=str(unit_path)))
         return records
 
-    if sys.platform.startswith("linux") and manifest.supervisor_kind == SupervisorKind.TASK.value:
-        cron_path, content = _linux_task_spec(manifest, artifact_paths["ensure-headroom.sh"])
+    if (
+        sys.platform.startswith("linux")
+        and manifest.supervisor_kind == SupervisorKind.TASK.value
+    ):
+        cron_path, content = _linux_task_spec(
+            manifest, artifact_paths["ensure-headroom.sh"]
+        )
         if cron_path is not None:
             cron_path.parent.mkdir(parents=True, exist_ok=True)
             cron_path.write_text(content)
@@ -240,12 +270,16 @@ def install_supervisor(manifest: DeploymentManifest) -> list[ArtifactRecord]:
             merged = pattern.sub("", existing).strip()
             new_content = (merged + "\n\n" + content).strip() + "\n"
             subprocess.run(["crontab", "-"], input=new_content, text=True, check=True)
-            records.append(ArtifactRecord(kind="crontab", path=f"user:{manifest.profile}"))
+            records.append(
+                ArtifactRecord(kind="crontab", path=f"user:{manifest.profile}")
+            )
         return records
 
     if sys.platform == "darwin":
         if manifest.supervisor_kind == SupervisorKind.SERVICE.value:
-            plist_path, content = _macos_launchd_plist(manifest, artifact_paths["run-headroom.sh"])
+            plist_path, content = _macos_launchd_plist(
+                manifest, artifact_paths["run-headroom.sh"]
+            )
         else:
             plist_path, content = _macos_launchd_plist(
                 manifest, artifact_paths["ensure-headroom.sh"], interval=300
@@ -265,21 +299,37 @@ def install_supervisor(manifest: DeploymentManifest) -> list[ArtifactRecord]:
             and manifest.supervisor_kind == SupervisorKind.SERVICE.value
             else f"gui/{os.getuid()}"
         )
-        subprocess.run(["launchctl", "bootstrap", bootstrap_domain, str(plist_path)], check=True)
+        subprocess.run(
+            ["launchctl", "bootstrap", bootstrap_domain, str(plist_path)], check=True
+        )
         records.append(ArtifactRecord(kind="plist", path=str(plist_path)))
         return records
 
     if _is_windows() and manifest.supervisor_kind == SupervisorKind.SERVICE.value:
         service_bin = f'cmd.exe /c "{windows_run_cmd_path(manifest.profile)}"'
         subprocess.run(
-            ["sc.exe", "create", manifest.service_name, f"binPath= {service_bin}", "start= auto"],
+            [
+                "sc.exe",
+                "create",
+                manifest.service_name,
+                f"binPath= {service_bin}",
+                "start= auto",
+            ],
             check=True,
         )
         subprocess.run(
-            ["sc.exe", "failure", manifest.service_name, "reset= 0", "actions= restart/5000"],
+            [
+                "sc.exe",
+                "failure",
+                manifest.service_name,
+                "reset= 0",
+                "actions= restart/5000",
+            ],
             check=True,
         )
-        records.append(ArtifactRecord(kind="windows-service", path=manifest.service_name))
+        records.append(
+            ArtifactRecord(kind="windows-service", path=manifest.service_name)
+        )
         return records
 
     if _is_windows() and manifest.supervisor_kind == SupervisorKind.TASK.value:
@@ -335,7 +385,9 @@ def start_supervisor(manifest: DeploymentManifest) -> None:
         return
     if sys.platform.startswith("linux"):
         flags = [] if manifest.scope == "system" else ["--user"]
-        subprocess.run(["systemctl", *flags, "restart", manifest.service_name], check=True)
+        subprocess.run(
+            ["systemctl", *flags, "restart", manifest.service_name], check=True
+        )
         return
     if sys.platform == "darwin":
         service, bootstrap_domain, plist_path = _macos_launchd_context(manifest)
@@ -349,7 +401,9 @@ def start_supervisor(manifest: DeploymentManifest) -> None:
                 raise click.ClickException(
                     _launchctl_failure_message(["bootout", service_target], bootout)
                 )
-        bootstrap = _launchctl(["bootstrap", bootstrap_domain, str(plist_path)], check=False)
+        bootstrap = _launchctl(
+            ["bootstrap", bootstrap_domain, str(plist_path)], check=False
+        )
         if bootstrap.returncode != 0:
             if _launchctl(["print", service_target], check=False).returncode != 0:
                 raise click.ClickException(
@@ -357,7 +411,8 @@ def start_supervisor(manifest: DeploymentManifest) -> None:
                         ["bootstrap", bootstrap_domain, str(plist_path)], bootstrap
                     )
                 )
-            return
+            # Service can already be registered while bootstrap returns non-zero.
+            # In that case we still need kickstart below to force a restart.
         kickstart = _launchctl(["kickstart", "-k", service_target], check=False)
         if kickstart.returncode not in {0, 37}:
             output = "\n".join(
@@ -408,12 +463,18 @@ def remove_supervisor(manifest: DeploymentManifest) -> None:
                 capture_output=True,
                 text=True,
             )
-            unit_path, _ = _linux_service_unit(manifest, unix_run_script_path(manifest.profile))
+            unit_path, _ = _linux_service_unit(
+                manifest, unix_run_script_path(manifest.profile)
+            )
             if unit_path.exists():
                 unit_path.unlink()
-            subprocess.run(["systemctl", *flags, "daemon-reload"], capture_output=True, text=True)
+            subprocess.run(
+                ["systemctl", *flags, "daemon-reload"], capture_output=True, text=True
+            )
             return
-        cron_path, _ = _linux_task_spec(manifest, unix_ensure_script_path(manifest.profile))
+        cron_path, _ = _linux_task_spec(
+            manifest, unix_ensure_script_path(manifest.profile)
+        )
         if cron_path and cron_path.exists():
             cron_path.unlink()
             return
@@ -422,20 +483,29 @@ def remove_supervisor(manifest: DeploymentManifest) -> None:
             return
         marker_start = f"# >>> headroom {manifest.profile} >>>"
         marker_end = f"# <<< headroom {manifest.profile} <<<"
-        pattern = re.compile(re.escape(marker_start) + r".*?" + re.escape(marker_end), re.DOTALL)
+        pattern = re.compile(
+            re.escape(marker_start) + r".*?" + re.escape(marker_end), re.DOTALL
+        )
         content = pattern.sub("", current.stdout).strip()
         subprocess.run(
-            ["crontab", "-"], input=(content + "\n") if content else "", text=True, check=True
+            ["crontab", "-"],
+            input=(content + "\n") if content else "",
+            text=True,
+            check=True,
         )
         return
 
     if sys.platform == "darwin":
         plist_path, _ = _macos_launchd_plist(
             manifest,
-            unix_run_script_path(manifest.profile)
-            if manifest.supervisor_kind == SupervisorKind.SERVICE.value
-            else unix_ensure_script_path(manifest.profile),
-            interval=300 if manifest.supervisor_kind == SupervisorKind.TASK.value else None,
+            (
+                unix_run_script_path(manifest.profile)
+                if manifest.supervisor_kind == SupervisorKind.SERVICE.value
+                else unix_ensure_script_path(manifest.profile)
+            ),
+            interval=(
+                300 if manifest.supervisor_kind == SupervisorKind.TASK.value else None
+            ),
         )
         service, bootstrap_domain, _ = _macos_launchd_context(manifest)
         subprocess.run(
@@ -450,10 +520,14 @@ def remove_supervisor(manifest: DeploymentManifest) -> None:
     if _is_windows():
         if manifest.supervisor_kind == SupervisorKind.SERVICE.value:
             subprocess.run(
-                ["sc.exe", "stop", manifest.service_name], capture_output=True, text=True
+                ["sc.exe", "stop", manifest.service_name],
+                capture_output=True,
+                text=True,
             )
             subprocess.run(
-                ["sc.exe", "delete", manifest.service_name], capture_output=True, text=True
+                ["sc.exe", "delete", manifest.service_name],
+                capture_output=True,
+                text=True,
             )
             return
         subprocess.run(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from copy import deepcopy
 
 import click
@@ -44,8 +45,25 @@ def install() -> None:
 def _require_manifest(profile: str) -> DeploymentManifest:
     manifest = load_manifest(profile)
     if manifest is None:
-        raise click.ClickException(f"No deployment profile named '{profile}' is installed.")
+        raise click.ClickException(
+            f"No deployment profile named '{profile}' is installed."
+        )
     return manifest
+
+
+def _deployment_ready_timeout_seconds() -> int:
+    """Return startup readiness timeout for install lifecycle commands.
+
+    Large model warmup can exceed legacy defaults, which caused false
+    restart/start failures and unnecessary supervisor churn.
+    """
+
+    raw = os.getenv("HEADROOM_INSTALL_READY_TIMEOUT", "120")
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 120
+    return max(30, value)
 
 
 def _start_deployment(manifest: DeploymentManifest) -> None:
@@ -56,9 +74,11 @@ def _start_deployment(manifest: DeploymentManifest) -> None:
     else:
         start_detached_agent(manifest.profile)
 
-    if not wait_ready(manifest, timeout_seconds=45):
+    timeout_seconds = _deployment_ready_timeout_seconds()
+    if not wait_ready(manifest, timeout_seconds=timeout_seconds):
         raise click.ClickException(
-            f"Deployment '{manifest.profile}' did not become ready after start."
+            f"Deployment '{manifest.profile}' did not become ready after start "
+            f"(timeout={timeout_seconds}s)."
         )
 
 
@@ -137,9 +157,16 @@ def _reject_task_lifecycle(manifest: DeploymentManifest, action: str) -> None:
     type=click.Choice(["claude", "copilot", "codex", "aider", "cursor", "openclaw"]),
     help="Tool target to configure when --providers manual is used.",
 )
-@click.option("--profile", default="default", show_default=True, help="Deployment profile name.")
 @click.option(
-    "--port", "-p", default=8787, type=int, show_default=True, help="Persistent proxy port."
+    "--profile", default="default", show_default=True, help="Deployment profile name."
+)
+@click.option(
+    "--port",
+    "-p",
+    default=8787,
+    type=int,
+    show_default=True,
+    help="Persistent proxy port.",
 )
 @click.option(
     "--backend",
@@ -152,12 +179,22 @@ def _reject_task_lifecycle(manifest: DeploymentManifest, action: str) -> None:
     default=None,
     help="Provider for any-llm backends when --backend anyllm is used.",
 )
-@click.option("--region", default=None, help="Cloud region for Bedrock / Vertex style backends.")
 @click.option(
-    "--mode", "proxy_mode", default="token", show_default=True, help="Proxy optimization mode."
+    "--region", default=None, help="Cloud region for Bedrock / Vertex style backends."
 )
-@click.option("--memory", is_flag=True, help="Enable persistent memory in the proxy runtime.")
-@click.option("--no-telemetry", is_flag=True, help="Disable anonymous telemetry in the runtime.")
+@click.option(
+    "--mode",
+    "proxy_mode",
+    default="token",
+    show_default=True,
+    help="Proxy optimization mode.",
+)
+@click.option(
+    "--memory", is_flag=True, help="Enable persistent memory in the proxy runtime."
+)
+@click.option(
+    "--no-telemetry", is_flag=True, help="Disable anonymous telemetry in the runtime."
+)
 @click.option(
     "--image",
     default="ghcr.io/chopratejas/headroom:latest",
@@ -229,7 +266,9 @@ def install_apply(
 
 
 @install.command("status")
-@click.option("--profile", default="default", show_default=True, help="Deployment profile name.")
+@click.option(
+    "--profile", default="default", show_default=True, help="Deployment profile name."
+)
 def install_status(profile: str) -> None:
     """Show persistent deployment status."""
 
@@ -245,11 +284,15 @@ def install_status(profile: str) -> None:
     click.echo(f"Healthy:    {'yes' if probe_ready(manifest.health_url) else 'no'}")
     if payload and isinstance(payload, dict):
         click.echo(f"Health URL: {manifest.health_url.replace('/readyz', '/health')}")
-        click.echo(f"Backend:    {payload.get('config', {}).get('backend', manifest.backend)}")
+        click.echo(
+            f"Backend:    {payload.get('config', {}).get('backend', manifest.backend)}"
+        )
 
 
 @install.command("start")
-@click.option("--profile", default="default", show_default=True, help="Deployment profile name.")
+@click.option(
+    "--profile", default="default", show_default=True, help="Deployment profile name."
+)
 def install_start(profile: str) -> None:
     """Start a persistent deployment."""
 
@@ -260,7 +303,9 @@ def install_start(profile: str) -> None:
 
 
 @install.command("stop")
-@click.option("--profile", default="default", show_default=True, help="Deployment profile name.")
+@click.option(
+    "--profile", default="default", show_default=True, help="Deployment profile name."
+)
 def install_stop(profile: str) -> None:
     """Stop a persistent deployment."""
 
@@ -271,7 +316,9 @@ def install_stop(profile: str) -> None:
 
 
 @install.command("restart")
-@click.option("--profile", default="default", show_default=True, help="Deployment profile name.")
+@click.option(
+    "--profile", default="default", show_default=True, help="Deployment profile name."
+)
 def install_restart(profile: str) -> None:
     """Restart a persistent deployment."""
 
@@ -283,7 +330,9 @@ def install_restart(profile: str) -> None:
 
 
 @install.command("remove")
-@click.option("--profile", default="default", show_default=True, help="Deployment profile name.")
+@click.option(
+    "--profile", default="default", show_default=True, help="Deployment profile name."
+)
 def install_remove(profile: str) -> None:
     """Remove a persistent deployment and undo managed config."""
 
@@ -312,7 +361,9 @@ def install_agent() -> None:
 
 
 @install_agent.command("run")
-@click.option("--profile", default="default", show_default=True, help="Deployment profile name.")
+@click.option(
+    "--profile", default="default", show_default=True, help="Deployment profile name."
+)
 def install_agent_run(profile: str) -> None:
     """Run the persistent runtime in the foreground."""
 
@@ -321,7 +372,9 @@ def install_agent_run(profile: str) -> None:
 
 
 @install_agent.command("ensure")
-@click.option("--profile", default="default", show_default=True, help="Deployment profile name.")
+@click.option(
+    "--profile", default="default", show_default=True, help="Deployment profile name."
+)
 def install_agent_ensure(profile: str) -> None:
     """Ensure a persistent deployment is healthy, starting it when needed."""
 
