@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
+import headroom.proxy.handlers.openai as openai_handlers
 from headroom.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _compact_openai_responses_tools,
@@ -96,7 +97,9 @@ def test_openai_tool_schema_compaction_preserves_invocation_shape() -> None:
     assert tool["parameters"]["additionalProperties"] is False
     assert tool["parameters"]["properties"]["path"]["type"] == "string"
     assert "examples" not in tool["parameters"]["properties"]["path"]
-    assert tool["parameters"]["properties"]["path"]["description"] == " ".join(verbose.split())
+    assert tool["parameters"]["properties"]["path"]["description"] == " ".join(
+        verbose.split()
+    )
 
 
 def test_openai_tool_schema_compaction_is_deterministic() -> None:
@@ -124,19 +127,72 @@ def test_openai_tool_schema_compaction_is_deterministic() -> None:
         ]
     }
 
-    first, first_modified, first_before, first_after = _compact_openai_responses_tools(payload)
-    second, second_modified, second_before, second_after = _compact_openai_responses_tools(payload)
+    first, first_modified, first_before, first_after = _compact_openai_responses_tools(
+        payload
+    )
+    second, second_modified, second_before, second_after = (
+        _compact_openai_responses_tools(payload)
+    )
 
     assert first_modified is True
     assert second_modified is True
     assert first_before == second_before
     assert first_after == second_after
     assert first == second
-    assert first["tools"][0]["description"] == ("Semantic code tools. Use for symbol-aware edits.")
+    assert first["tools"][0]["description"] == (
+        "Semantic code tools. Use for symbol-aware edits."
+    )
     prop = first["tools"][0]["parameters"]["properties"]["name_path_pattern"]
     assert prop["description"] == "Name path to match. Keeps full semantics."
     assert prop["type"] == "string"
     assert "examples" not in prop
+
+
+def test_openai_tool_schema_compaction_failure_is_bypassed(monkeypatch: Any) -> None:
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+
+    payload: dict[str, Any] = {
+        "model": "gpt-5.5",
+        "tools": [
+            {
+                "type": "function",
+                "name": "read_file",
+                "description": "Read a file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"path": {"type": "string"}},
+                },
+            }
+        ],
+        "input": [
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "hi"}],
+            }
+        ],
+    }
+
+    def _raise_compaction_error(
+        _payload: dict[str, Any],
+    ) -> tuple[dict[str, Any], bool, int, int]:
+        raise RuntimeError("synthetic compaction failure")
+
+    monkeypatch.setattr(
+        openai_handlers, "_compact_openai_responses_tools", _raise_compaction_error
+    )
+
+    updated, _modified, _saved, transforms, _reason, _before, _after, _attempted = (
+        handler._compress_openai_responses_payload(
+            payload,
+            model="gpt-5.5",
+            request_id="hr_compaction_fail_open_0001",
+        )
+    )
+
+    assert updated["tools"] == payload["tools"]
+    assert "openai:responses:tool_schema_compaction" not in transforms
 
 
 class _StubTokenizer:
@@ -200,7 +256,9 @@ def test_codex_input_list_payload_reaches_router_without_skip() -> None:
     # would be the input payload identity-passed through with
     # modified=False — but the deepcopy + splice always returns a new
     # dict object when the path executes.
-    assert updated is not payload, "Codex-shape payload was skipped at the input/messages gate"
+    assert (
+        updated is not payload
+    ), "Codex-shape payload was skipped at the input/messages gate"
     # Whether or not Kompress actually compresses 200 repeated words is
     # not the point of this test; the point is that we *entered* the
     # extraction loop. Modified may be True or False depending on
@@ -287,7 +345,9 @@ def test_compression_pass_debug_logs_are_suppressed(caplog) -> None:
         payload_a, model="gpt-5.5", request_id="hr_shared_request"
     )
 
-    assert not any("event=codex_compression_" in record.getMessage() for record in caplog.records)
+    assert not any(
+        "event=codex_compression_" in record.getMessage() for record in caplog.records
+    )
     return
 
     # Collect pass_ids in call order — payload bodies are no longer
@@ -305,18 +365,18 @@ def test_compression_pass_debug_logs_are_suppressed(caplog) -> None:
         end = message.find('"', start)
         pass_id_sequence.append(message[start:end])
 
-    assert len(pass_id_sequence) == 3, (
-        f"expected exactly 3 payload_input events for 3 calls, got {len(pass_id_sequence)}"
-    )
+    assert (
+        len(pass_id_sequence) == 3
+    ), f"expected exactly 3 payload_input events for 3 calls, got {len(pass_id_sequence)}"
     # Two distinct payloads + one repeat → two distinct pass_ids overall.
-    assert len(set(pass_id_sequence)) == 2, (
-        f"expected two distinct pass_ids, got {set(pass_id_sequence)}"
-    )
+    assert (
+        len(set(pass_id_sequence)) == 2
+    ), f"expected two distinct pass_ids, got {set(pass_id_sequence)}"
     # Repeated payload_a must be deterministic — index 0 and 2 are the
     # same call shape so they must produce the same pass_id.
-    assert pass_id_sequence[0] == pass_id_sequence[2], (
-        f"repeated identical payload produced different pass_ids: {pass_id_sequence}"
-    )
+    assert (
+        pass_id_sequence[0] == pass_id_sequence[2]
+    ), f"repeated identical payload produced different pass_ids: {pass_id_sequence}"
     assert pass_id_sequence[0] != pass_id_sequence[1]
 
 
@@ -350,7 +410,9 @@ def test_codex_payload_without_either_field_is_skipped() -> None:
     assert transforms == []
 
 
-def test_content_router_retries_kompress_when_structured_strategy_noops(monkeypatch) -> None:
+def test_content_router_retries_kompress_when_structured_strategy_noops(
+    monkeypatch,
+) -> None:
     router = ContentRouter(ContentRouterConfig(enable_smart_crusher=True))
     content = " ".join("x" for _ in range(200))
 
