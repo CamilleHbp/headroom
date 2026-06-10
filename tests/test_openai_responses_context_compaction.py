@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
+import headroom.proxy.handlers.openai as openai_handlers
 from headroom.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _compact_openai_responses_tools,
@@ -223,6 +224,51 @@ class _HandlerHarness(OpenAIHandlerMixin):
     def __init__(self, router: ContentRouter):
         self.openai_pipeline: Any = _StubPipeline(router)
         self.openai_provider: Any = _StubProvider()
+
+
+def test_openai_tool_schema_compaction_failure_is_bypassed(monkeypatch: Any) -> None:
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+
+    payload: dict[str, Any] = {
+        "model": "gpt-5.5",
+        "tools": [
+            {
+                "type": "function",
+                "name": "read_file",
+                "description": "Read a file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"path": {"type": "string"}},
+                },
+            }
+        ],
+        "input": [
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "hi"}],
+            }
+        ],
+    }
+
+    def _raise_compaction_error(
+        _payload: dict[str, Any],
+    ) -> tuple[dict[str, Any], bool, int, int]:
+        raise RuntimeError("synthetic compaction failure")
+
+    monkeypatch.setattr(openai_handlers, "_compact_openai_responses_tools", _raise_compaction_error)
+
+    updated, _modified, _saved, transforms, _reason, _before, _after, _attempted = (
+        handler._compress_openai_responses_payload(
+            payload,
+            model="gpt-5.5",
+            request_id="hr_compaction_fail_open_0001",
+        )
+    )
+
+    assert updated["tools"] == payload["tools"]
+    assert "openai:responses:tool_schema_compaction" not in transforms
 
 
 def test_codex_input_list_payload_reaches_router_without_skip() -> None:
