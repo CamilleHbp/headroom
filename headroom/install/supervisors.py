@@ -411,8 +411,9 @@ def start_supervisor(manifest: DeploymentManifest) -> None:
                         ["bootstrap", bootstrap_domain, str(plist_path)], bootstrap
                     )
                 )
-            # Service can already be registered while bootstrap returns non-zero.
-            # In that case we still need kickstart below to force a restart.
+            # Service can already be registered while bootstrap returns non-zero;
+            # treat that as started rather than forcing another launchctl action.
+            return
         kickstart = _launchctl(["kickstart", "-k", service_target], check=False)
         if kickstart.returncode not in {0, 37}:
             output = "\n".join(
