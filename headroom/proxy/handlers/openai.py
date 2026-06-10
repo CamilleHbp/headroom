@@ -2253,38 +2253,62 @@ class OpenAIHandlerMixin:
         transforms: list[str] = []
         reason: str | None = None
 
+        tools_modified = False
+        tools_before_bytes = 0
+        tools_after_bytes = 0
         tool_compaction_started = time.perf_counter()
-        compacted_payload, tools_modified, tools_before_bytes, tools_after_bytes = (
-            _compact_openai_responses_tools(working)
-        )
-        _add_timing("compression_tool_schema_compaction", tool_compaction_started)
-        if tools_modified:
-            working = compacted_payload
-            modified = True
-            reason = None
-            transforms.append("openai:responses:tool_schema_compaction")
-            try:
-                tool_token_started = time.perf_counter()
-                tokenizer = self.openai_provider.get_token_counter(model)
-                tokens_saved += max(
-                    0,
-                    tokenizer.count_text(_json_debug_dumps(payload.get("tools")))
-                    - tokenizer.count_text(_json_debug_dumps(working.get("tools"))),
-                )
-                _add_timing("compression_tool_schema_token_count", tool_token_started)
-            except Exception:
-                pass
+        try:
+            compacted_payload, tools_modified, tools_before_bytes, tools_after_bytes = (
+                _compact_openai_responses_tools(working)
+            )
+        except Exception as compaction_error:
+            logger.warning(
+                "[%s] /v1/responses tool schema compaction failed; bypassing compaction: %s: %s",
+                request_id,
+                type(compaction_error).__name__,
+                compaction_error,
+            )
             if debug_enabled:
                 _log_codex_compression_debug(
                     "codex_tool_schema_compaction",
                     request_id=request_id,
                     pass_id=pass_id,
                     model=model,
-                    modified=True,
-                    tools_bytes_before=tools_before_bytes,
-                    tools_bytes_after=tools_after_bytes,
-                    tools_bytes_saved=tools_before_bytes - tools_after_bytes,
+                    modified=False,
+                    failed=True,
+                    error_type=type(compaction_error).__name__,
+                    error=str(compaction_error),
+                    bypassed=True,
                 )
+        else:
+            if tools_modified:
+                working = compacted_payload
+                modified = True
+                reason = None
+                transforms.append("openai:responses:tool_schema_compaction")
+                try:
+                    tool_token_started = time.perf_counter()
+                    tokenizer = self.openai_provider.get_token_counter(model)
+                    tokens_saved += max(
+                        0,
+                        tokenizer.count_text(_json_debug_dumps(payload.get("tools")))
+                        - tokenizer.count_text(_json_debug_dumps(working.get("tools"))),
+                    )
+                    _add_timing("compression_tool_schema_token_count", tool_token_started)
+                except Exception:
+                    pass
+                if debug_enabled:
+                    _log_codex_compression_debug(
+                        "codex_tool_schema_compaction",
+                        request_id=request_id,
+                        pass_id=pass_id,
+                        model=model,
+                        modified=True,
+                        tools_bytes_before=tools_before_bytes,
+                        tools_bytes_after=tools_after_bytes,
+                        tools_bytes_saved=tools_before_bytes - tools_after_bytes,
+                    )
+        _add_timing("compression_tool_schema_compaction", tool_compaction_started)
 
         # Layer 2: Tool description truncation (opt-in via
         # HEADROOM_TOOL_DESC_MAX_CHARS).
