@@ -980,6 +980,8 @@
       
         
       
+        
+      
     
     
     
@@ -1042,6 +1044,34 @@
     
   
     Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vertex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vertex AI
   
 
     
@@ -1825,6 +1855,8 @@
       
         
       
+        
+      
     
     
     
@@ -1943,6 +1975,34 @@
     
   
     SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network-diff-capture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differential Network Capture
   
 
     
@@ -2517,7 +2577,7 @@
 </ul>
 <hr />
 <h2 id="production-telemetry">Production Telemetry<a class="headerlink" href="#production-telemetry" title="Permanent link">&para;</a></h2>
-<p>Real-world data from <strong>50,000+ proxy sessions</strong> across 250+ unique instances (March 30 – April 2, 2026). Collected via anonymous telemetry beacon (opt-out: <code>HEADROOM_TELEMETRY=off</code>).</p>
+<p>Real-world data from <strong>50,000+ proxy sessions</strong> across 250+ unique instances (March 30 – April 2, 2026). Collected via anonymous telemetry beacon (opt-in: <code>HEADROOM_TELEMETRY=on</code>; telemetry is off by default).</p>
 <h3 id="proxy-overhead">Proxy Overhead<a class="headerlink" href="#proxy-overhead" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2817,7 +2877,7 @@
 <li>Collected via anonymous beacon (no prompts, no content, no PII)</li>
 <li>Image-inflated instances excluded (base64 counted as text tokens — fixed in v0.5.18)</li>
 <li>Multi-worker beacon spam excluded (per-instance MAX, not SUM)</li>
-<li>Opt-out: <code>HEADROOM_TELEMETRY=off</code></li>
+<li>Opt-in: <code>HEADROOM_TELEMETRY=on</code> (telemetry is off by default)</li>
 </ul>
 <hr />
 <h2 id="reproducing-results">Reproducing Results<a class="headerlink" href="#reproducing-results" title="Permanent link">&para;</a></h2>

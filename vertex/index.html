@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://chopratejas.github.io/headroom/LATENCY_BENCHMARKS/">
+        <link rel="canonical" href="https://chopratejas.github.io/headroom/vertex/">
       
       
-        <link rel="prev" href="../benchmarks/">
+        <link rel="prev" href="../integration-guide/">
       
       
-        <link rel="next" href="../LIMITATIONS/">
+        <link rel="next" href="../langchain/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Latency - Headroom</title>
+        <title>Vertex AI - Headroom</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#headroom-latency-benchmarks" class="md-skip">
+        <a href="#vertex-ai" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Latency
+              Vertex AI
             
           </span>
         </div>
@@ -289,10 +289,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../integration-guide/" class="md-tabs__link">
           
   
@@ -333,12 +335,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../benchmarks/" class="md-tabs__link">
           
   
@@ -965,8 +965,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -986,21 +988,22 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -1018,7 +1021,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1061,10 +1064,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../vertex/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vertex AI
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1080,6 +1110,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#configure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gemini-on-vertex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gemini On Vertex
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anthropic-publisher-on-vertex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anthropic Publisher On Vertex
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#claude-code-with-headroom-compression-validated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Claude Code with Headroom compression (validated)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1391,10 +1485,8 @@
       
   
   
-    
   
   
-  
     
     
       
@@ -1408,22 +1500,21 @@
     
     
       
-        
-        
-      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   
@@ -1441,7 +1532,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1484,37 +1575,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Latency
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../LATENCY_BENCHMARKS/" class="md-nav__link">
         
   
   
@@ -1530,103 +1594,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Environment
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tldr" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        TL;DR
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compression-overhead-by-scenario" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compression Overhead by Scenario
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#per-transform-latency-breakdown" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Per-Transform Latency Breakdown
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cost-benefit-analysis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cost-Benefit Analysis
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#break-even-across-models" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Break-Even Across Models
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-takeaways" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Takeaways
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2060,10 +2027,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#environment" class="md-nav__link">
+  <a href="#configure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Environment
+        Configure
       
     </span>
   </a>
@@ -2071,10 +2038,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tldr" class="md-nav__link">
+  <a href="#gemini-on-vertex" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TL;DR
+        Gemini On Vertex
       
     </span>
   </a>
@@ -2082,10 +2049,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#compression-overhead-by-scenario" class="md-nav__link">
+  <a href="#anthropic-publisher-on-vertex" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compression Overhead by Scenario
+        Anthropic Publisher On Vertex
       
     </span>
   </a>
@@ -2093,43 +2060,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#per-transform-latency-breakdown" class="md-nav__link">
+  <a href="#claude-code-with-headroom-compression-validated" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Per-Transform Latency Breakdown
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cost-benefit-analysis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cost-Benefit Analysis
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#break-even-across-models" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Break-Even Across Models
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-takeaways" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Takeaways
+        Claude Code with Headroom compression (validated)
       
     </span>
   </a>
@@ -2156,613 +2090,76 @@
   
 
 
-<h1 id="headroom-latency-benchmarks">Headroom Latency Benchmarks<a class="headerlink" href="#headroom-latency-benchmarks" title="Permanent link">&para;</a></h1>
-<p>Measured compression overhead across content types and sizes to answer: <strong>does the token savings outweigh the processing time?</strong></p>
-<p>Generated: 2026-02-24 01:11 UTC</p>
-<h2 id="environment">Environment<a class="headerlink" href="#environment" title="Permanent link">&para;</a></h2>
+<h1 id="vertex-ai">Vertex AI<a class="headerlink" href="#vertex-ai" title="Permanent link">&para;</a></h1>
+<p>Headroom supports Google Cloud Vertex AI publisher endpoints through the proxy
+passthrough surface. Configure the proxy with a regional Vertex base URL, then
+send normal Vertex REST requests through Headroom.</p>
+<p>Google documents Gemini generation on Vertex with <code>generateContent</code> and
+<code>streamGenerateContent</code>, and the request body uses the Vertex/Gemini <code>contents</code>
+shape. See Google Cloud's model inference reference:
+https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference</p>
+<p>Google Cloud REST calls authenticate with a bearer access token. For local
+development, Google documents both <code>gcloud auth print-access-token</code> and
+<code>gcloud auth application-default print-access-token</code>; Application Default
+Credentials search <code>GOOGLE_APPLICATION_CREDENTIALS</code>, local ADC files, and
+attached service accounts in that order. See:</p>
 <ul>
-<li><strong>Platform</strong>: macOS-26.1-arm64-arm-64bit</li>
-<li><strong>Processor</strong>: arm</li>
-<li><strong>Python</strong>: 3.11.11</li>
-<li><strong>Headroom</strong>: v0.3.7</li>
+<li>https://docs.cloud.google.com/docs/authentication/rest</li>
+<li>https://docs.cloud.google.com/docs/authentication/application-default-credentials</li>
 </ul>
+<h2 id="configure">Configure<a class="headerlink" href="#configure" title="Permanent link">&para;</a></h2>
+<p>Set the Vertex regional host explicitly:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>headroom<span class="w"> </span>proxy<span class="w"> </span>--vertex-api-url<span class="w"> </span>https://us-central1-aiplatform.googleapis.com
+</span></code></pre></div>
+<p>The same setting is available through <code>VERTEX_TARGET_API_URL</code>.</p>
+<h2 id="gemini-on-vertex">Gemini On Vertex<a class="headerlink" href="#gemini-on-vertex" title="Permanent link">&para;</a></h2>
+<p>Send Vertex publisher paths through the proxy unchanged:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">ACCESS_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>gcloud<span class="w"> </span>auth<span class="w"> </span>print-access-token<span class="k">)</span><span class="s2">&quot;</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>curl<span class="w"> </span>-sS<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="si">${</span><span class="nv">ACCESS_TOKEN</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span>http://127.0.0.1:8787/v1/projects/PROJECT_ID/locations/us-central1/publishers/google/models/gemini-2.0-flash:generateContent<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="s1">    &quot;contents&quot;: [</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="s1">      {</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="s1">        &quot;role&quot;: &quot;user&quot;,</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="s1">        &quot;parts&quot;: [{&quot;text&quot;: &quot;Summarize this repository in one paragraph.&quot;}]</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="s1">      }</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="s1">    ]</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="s1">  }&#39;</span>
+</span></code></pre></div>
+<p>Supported passthrough actions:</p>
+<ul>
+<li><code>generateContent</code></li>
+<li><code>streamGenerateContent</code></li>
+<li><code>countTokens</code></li>
+</ul>
+<h2 id="anthropic-publisher-on-vertex">Anthropic Publisher On Vertex<a class="headerlink" href="#anthropic-publisher-on-vertex" title="Permanent link">&para;</a></h2>
+<p>Headroom also forwards Anthropic publisher calls on Vertex:</p>
+<ul>
+<li><code>rawPredict</code></li>
+<li><code>streamRawPredict</code></li>
+</ul>
+<p>The Python proxy preserves caller-supplied Google bearer auth. The native Rust
+proxy path additionally resolves GCP ADC and injects the bearer token for the
+Anthropic publisher route.</p>
+<h2 id="claude-code-with-headroom-compression-validated">Claude Code with Headroom compression (validated)<a class="headerlink" href="#claude-code-with-headroom-compression-validated" title="Permanent link">&para;</a></h2>
+<p>To run <strong>Claude Code</strong> against Claude-on-Vertex <strong>with Headroom compressing the
+context</strong>, use the dedicated, tested runbook:</p>
+<p>➡️ <strong><a href="https://headroom-docs.vercel.app/docs/claude-code-vertex">Claude Code + Vertex + Headroom</a></strong></p>
+<p>Short version: run Claude Code in <strong>normal Anthropic mode</strong> (<code>ANTHROPIC_BASE_URL</code>
+→ the proxy) and start the proxy with <code>--backend litellm-vertex_ai --region &lt;loc&gt;
+--code-aware</code>; Headroom holds the GCP ADC creds and calls Vertex.</p>
 <blockquote>
-<p><strong>Note:</strong> These benchmarks were captured on v0.3.7. Since then, v0.5.6 added parallel message compression, eliminated redundant token counting, and optimized hot-path hashing. Expect lower latency on current versions. Re-benchmarking is planned.</p>
+<p>⚠️ Do <strong>not</strong> put Claude Code into Vertex mode and point <code>ANTHROPIC_VERTEX_BASE_URL</code>
+at the proxy. Claude Code's client-side model probe rejects any non-Google Vertex
+URL before sending a request ("model … not available on your vertex deployment"),
+so the proxy is never reached. Use the Anthropic-mode runbook above instead.</p>
+<p>⚠️ Two easy-to-miss requirements: <code>pip install "google-cloud-aiplatform&gt;=1.38"</code>
+(LiteLLM <code>vertex_ai</code> provider) and the <code>--code-aware</code> flag (code compression is
+off by default). Without them you get a 500 or <code>tokens_saved: 0</code>.</p>
 </blockquote>
-<h2 id="tldr">TL;DR<a class="headerlink" href="#tldr" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Average compression: <strong>93%</strong> token reduction</li>
-<li>Maximum compression overhead: <strong>12213ms</strong> (p50)</li>
-<li>Net latency win: <strong>11/12</strong> scenarios against Claude Sonnet 4.5</li>
-</ul>
-<h2 id="compression-overhead-by-scenario">Compression Overhead by Scenario<a class="headerlink" href="#compression-overhead-by-scenario" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Scenario</th>
-<th>Tokens In</th>
-<th>Tokens Out</th>
-<th>Saved</th>
-<th>Ratio</th>
-<th>p50 (ms)</th>
-<th>p95 (ms)</th>
-<th>Mean (ms)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>JSON: Search Results (100 items)</td>
-<td>10.2K</td>
-<td>1.5K</td>
-<td>8.7K</td>
-<td>86%</td>
-<td>189</td>
-<td>231</td>
-<td>196</td>
-</tr>
-<tr>
-<td>JSON: Search Results (500 items)</td>
-<td>50.2K</td>
-<td>1.5K</td>
-<td>48.7K</td>
-<td>97%</td>
-<td>943</td>
-<td>955</td>
-<td>943</td>
-</tr>
-<tr>
-<td>JSON: Search Results (1K items)</td>
-<td>100.5K</td>
-<td>1.5K</td>
-<td>99.0K</td>
-<td>99%</td>
-<td>2012</td>
-<td>2198</td>
-<td>2032</td>
-</tr>
-<tr>
-<td>JSON: Search Results (5K items)</td>
-<td>502.6K</td>
-<td>1.5K</td>
-<td>501.2K</td>
-<td>100%</td>
-<td>12213</td>
-<td>12804</td>
-<td>12223</td>
-</tr>
-<tr>
-<td>JSON: API Responses (500 items)</td>
-<td>38.9K</td>
-<td>1.1K</td>
-<td>37.8K</td>
-<td>97%</td>
-<td>743</td>
-<td>776</td>
-<td>744</td>
-</tr>
-<tr>
-<td>JSON: Database Rows (1K rows)</td>
-<td>43.7K</td>
-<td>605</td>
-<td>43.1K</td>
-<td>99%</td>
-<td>961</td>
-<td>1104</td>
-<td>986</td>
-</tr>
-<tr>
-<td>JSON: String Array (100 strings)</td>
-<td>1.1K</td>
-<td>231</td>
-<td>820</td>
-<td>78%</td>
-<td>15.0</td>
-<td>15.4</td>
-<td>15.0</td>
-</tr>
-<tr>
-<td>JSON: String Array (500 strings)</td>
-<td>4.9K</td>
-<td>233</td>
-<td>4.6K</td>
-<td>95%</td>
-<td>71.9</td>
-<td>80.3</td>
-<td>72.7</td>
-</tr>
-<tr>
-<td>JSON: String Array (1K strings)</td>
-<td>9.6K</td>
-<td>242</td>
-<td>9.4K</td>
-<td>97%</td>
-<td>146</td>
-<td>160</td>
-<td>147</td>
-</tr>
-<tr>
-<td>JSON: Number Array (200 numbers)</td>
-<td>1.2K</td>
-<td>192</td>
-<td>1.1K</td>
-<td>85%</td>
-<td>30.9</td>
-<td>61.9</td>
-<td>33.8</td>
-</tr>
-<tr>
-<td>JSON: Number Array (1K numbers)</td>
-<td>6.1K</td>
-<td>243</td>
-<td>5.8K</td>
-<td>96%</td>
-<td>301</td>
-<td>307</td>
-<td>300</td>
-</tr>
-<tr>
-<td>JSON: Mixed Array (250 items)</td>
-<td>2.3K</td>
-<td>368</td>
-<td>1.9K</td>
-<td>84%</td>
-<td>38.4</td>
-<td>39.8</td>
-<td>38.4</td>
-</tr>
-</tbody>
-</table>
-<h2 id="per-transform-latency-breakdown">Per-Transform Latency Breakdown<a class="headerlink" href="#per-transform-latency-breakdown" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Scenario</th>
-<th>Transform</th>
-<th>p50 (ms)</th>
-<th>% of Total</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>JSON: Search Results (100 items)</td>
-<td>cache_aligner</td>
-<td>2.2</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (100 items)</td>
-<td>content_router</td>
-<td>186</td>
-<td>98%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (100 items)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (500 items)</td>
-<td>cache_aligner</td>
-<td>10.7</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (500 items)</td>
-<td>content_router</td>
-<td>927</td>
-<td>98%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (500 items)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (1K items)</td>
-<td>cache_aligner</td>
-<td>21.0</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (1K items)</td>
-<td>content_router</td>
-<td>1980</td>
-<td>98%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (1K items)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (5K items)</td>
-<td>cache_aligner</td>
-<td>105</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (5K items)</td>
-<td>content_router</td>
-<td>11985</td>
-<td>98%</td>
-</tr>
-<tr>
-<td>JSON: Search Results (5K items)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: API Responses (500 items)</td>
-<td>cache_aligner</td>
-<td>8.8</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: API Responses (500 items)</td>
-<td>content_router</td>
-<td>729</td>
-<td>98%</td>
-</tr>
-<tr>
-<td>JSON: API Responses (500 items)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: Database Rows (1K rows)</td>
-<td>cache_aligner</td>
-<td>9.3</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: Database Rows (1K rows)</td>
-<td>content_router</td>
-<td>946</td>
-<td>99%</td>
-</tr>
-<tr>
-<td>JSON: Database Rows (1K rows)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: String Array (100 strings)</td>
-<td>cache_aligner</td>
-<td>0.27</td>
-<td>2%</td>
-</tr>
-<tr>
-<td>JSON: String Array (100 strings)</td>
-<td>content_router</td>
-<td>14.5</td>
-<td>97%</td>
-</tr>
-<tr>
-<td>JSON: String Array (100 strings)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: String Array (500 strings)</td>
-<td>cache_aligner</td>
-<td>0.95</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: String Array (500 strings)</td>
-<td>content_router</td>
-<td>70.2</td>
-<td>98%</td>
-</tr>
-<tr>
-<td>JSON: String Array (500 strings)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: String Array (1K strings)</td>
-<td>cache_aligner</td>
-<td>1.9</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: String Array (1K strings)</td>
-<td>content_router</td>
-<td>143</td>
-<td>98%</td>
-</tr>
-<tr>
-<td>JSON: String Array (1K strings)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: Number Array (200 numbers)</td>
-<td>cache_aligner</td>
-<td>0.66</td>
-<td>2%</td>
-</tr>
-<tr>
-<td>JSON: Number Array (200 numbers)</td>
-<td>content_router</td>
-<td>29.6</td>
-<td>96%</td>
-</tr>
-<tr>
-<td>JSON: Number Array (200 numbers)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: Number Array (1K numbers)</td>
-<td>cache_aligner</td>
-<td>2.5</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: Number Array (1K numbers)</td>
-<td>content_router</td>
-<td>297</td>
-<td>99%</td>
-</tr>
-<tr>
-<td>JSON: Number Array (1K numbers)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-<tr>
-<td>JSON: Mixed Array (250 items)</td>
-<td>cache_aligner</td>
-<td>0.58</td>
-<td>1%</td>
-</tr>
-<tr>
-<td>JSON: Mixed Array (250 items)</td>
-<td>content_router</td>
-<td>37.4</td>
-<td>97%</td>
-</tr>
-<tr>
-<td>JSON: Mixed Array (250 items)</td>
-<td>rolling_window</td>
-<td>&lt;0.01</td>
-<td>0%</td>
-</tr>
-</tbody>
-</table>
-<h2 id="cost-benefit-analysis">Cost-Benefit Analysis<a class="headerlink" href="#cost-benefit-analysis" title="Permanent link">&para;</a></h2>
-<p>Net latency benefit = LLM time saved from fewer tokens - compression overhead.</p>
-<table>
-<thead>
-<tr>
-<th>Scenario</th>
-<th>Compress (ms)</th>
-<th>LLM Saved (ms)*</th>
-<th>Net Benefit</th>
-<th>$/1K Requests**</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>JSON: Search Results (100 items)</td>
-<td>189</td>
-<td>261</td>
-<td>+71.8ms</td>
-<td>$26.13</td>
-</tr>
-<tr>
-<td>JSON: Search Results (500 items)</td>
-<td>943</td>
-<td>1461</td>
-<td>+517.5ms</td>
-<td>$146.06</td>
-</tr>
-<tr>
-<td>JSON: Search Results (1K items)</td>
-<td>2012</td>
-<td>2969</td>
-<td>+956.9ms</td>
-<td>$296.91</td>
-</tr>
-<tr>
-<td>JSON: Search Results (5K items)</td>
-<td>12213</td>
-<td>15035</td>
-<td>+2822.2ms</td>
-<td>$1503.53</td>
-</tr>
-<tr>
-<td>JSON: API Responses (500 items)</td>
-<td>743</td>
-<td>1134</td>
-<td>+390.7ms</td>
-<td>$113.38</td>
-</tr>
-<tr>
-<td>JSON: Database Rows (1K rows)</td>
-<td>961</td>
-<td>1292</td>
-<td>+330.7ms</td>
-<td>$129.16</td>
-</tr>
-<tr>
-<td>JSON: String Array (100 strings)</td>
-<td>15.0</td>
-<td>24.6</td>
-<td>+9.6ms</td>
-<td>$2.46</td>
-</tr>
-<tr>
-<td>JSON: String Array (500 strings)</td>
-<td>71.9</td>
-<td>139</td>
-<td>+67.1ms</td>
-<td>$13.90</td>
-</tr>
-<tr>
-<td>JSON: String Array (1K strings)</td>
-<td>146</td>
-<td>282</td>
-<td>+135.9ms</td>
-<td>$28.16</td>
-</tr>
-<tr>
-<td>JSON: Number Array (200 numbers)</td>
-<td>30.9</td>
-<td>31.6</td>
-<td>+0.7ms</td>
-<td>$3.16</td>
-</tr>
-<tr>
-<td>JSON: Number Array (1K numbers)</td>
-<td>301</td>
-<td>175</td>
-<td>-126.3ms</td>
-<td>$17.45</td>
-</tr>
-<tr>
-<td>JSON: Mixed Array (250 items)</td>
-<td>38.4</td>
-<td>56.6</td>
-<td>+18.2ms</td>
-<td>$5.66</td>
-</tr>
-</tbody>
-</table>
-<p>* LLM time saved based on Claude Sonnet 4.5 prefill rate (0.03ms/token)
-** Cost savings at $3.0/MTok input pricing</p>
-<h2 id="break-even-across-models">Break-Even Across Models<a class="headerlink" href="#break-even-across-models" title="Permanent link">&para;</a></h2>
-<p>Compression overhead (p50) vs. LLM time saved for different model speed tiers:</p>
-<table>
-<thead>
-<tr>
-<th>Scenario</th>
-<th>Compress (ms)</th>
-<th>GPT-4o Mini</th>
-<th>GPT-4o</th>
-<th>Claude Sonnet 4.5</th>
-<th>Claude Opus 4</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>JSON: Search Results (100 items)</td>
-<td>189</td>
-<td>-102ms</td>
-<td>+71.8ms</td>
-<td>+71.8ms</td>
-<td>+507ms</td>
-</tr>
-<tr>
-<td>JSON: Search Results (500 items)</td>
-<td>943</td>
-<td>-456ms</td>
-<td>+518ms</td>
-<td>+518ms</td>
-<td>+2952ms</td>
-</tr>
-<tr>
-<td>JSON: Search Results (1K items)</td>
-<td>2012</td>
-<td>-1022ms</td>
-<td>+957ms</td>
-<td>+957ms</td>
-<td>+5905ms</td>
-</tr>
-<tr>
-<td>JSON: Search Results (5K items)</td>
-<td>12213</td>
-<td>-7201ms</td>
-<td>+2822ms</td>
-<td>+2822ms</td>
-<td>+27881ms</td>
-</tr>
-<tr>
-<td>JSON: API Responses (500 items)</td>
-<td>743</td>
-<td>-365ms</td>
-<td>+391ms</td>
-<td>+391ms</td>
-<td>+2280ms</td>
-</tr>
-<tr>
-<td>JSON: Database Rows (1K rows)</td>
-<td>961</td>
-<td>-530ms</td>
-<td>+331ms</td>
-<td>+331ms</td>
-<td>+2483ms</td>
-</tr>
-<tr>
-<td>JSON: String Array (100 strings)</td>
-<td>15.0</td>
-<td>-6.8ms</td>
-<td>+9.6ms</td>
-<td>+9.6ms</td>
-<td>+50.6ms</td>
-</tr>
-<tr>
-<td>JSON: String Array (500 strings)</td>
-<td>71.9</td>
-<td>-25.6ms</td>
-<td>+67.1ms</td>
-<td>+67.1ms</td>
-<td>+299ms</td>
-</tr>
-<tr>
-<td>JSON: String Array (1K strings)</td>
-<td>146</td>
-<td>-51.9ms</td>
-<td>+136ms</td>
-<td>+136ms</td>
-<td>+605ms</td>
-</tr>
-<tr>
-<td>JSON: Number Array (200 numbers)</td>
-<td>30.9</td>
-<td>-20.4ms</td>
-<td>+0.68ms</td>
-<td>+0.68ms</td>
-<td>+53.3ms</td>
-</tr>
-<tr>
-<td>JSON: Number Array (1K numbers)</td>
-<td>301</td>
-<td>-243ms</td>
-<td>-126ms</td>
-<td>-126ms</td>
-<td>+165ms</td>
-</tr>
-<tr>
-<td>JSON: Mixed Array (250 items)</td>
-<td>38.4</td>
-<td>-19.5ms</td>
-<td>+18.2ms</td>
-<td>+18.2ms</td>
-<td>+113ms</td>
-</tr>
-</tbody>
-</table>
-<h2 id="key-takeaways">Key Takeaways<a class="headerlink" href="#key-takeaways" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Compression pays for itself in latency</strong> for 11/12 compressing scenarios (json). For these, the LLM prefill time saved exceeds compression overhead.</li>
-<li><strong>ContentRouter is 98% of pipeline cost</strong> on average — it does the actual compression work. CacheAligner and context management are &lt;2% of total time.</li>
-<li><strong>Cost savings are substantial regardless of latency.</strong> The highest-compression scenario (JSON: Search Results (5K items)) saves $1504/1K requests at Claude Sonnet 4.5 pricing.</li>
-<li><strong>Slower/pricier models benefit most.</strong> Claude Opus shows a net latency win in 12/12 scenarios vs 11 for Claude Sonnet 4.5, with 0.08ms/token prefill.</li>
-</ol>
-<hr />
-<p><em>Benchmarks run with <code>python benchmarks/bench_latency.py</code>. Results vary based on hardware, Python version, and content characteristics.</em></p>
 
 
 
